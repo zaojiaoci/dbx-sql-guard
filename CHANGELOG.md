@@ -66,11 +66,14 @@ an in-place rebuild because 0.4.0 is already published: upstream allows rebuildi
   copying by hand needs no letter-picking. When the sidecar answers nothing, the row says exactly that
   rather than printing an empty path — a blank there reads as "there are no records". This is placement,
   not secrecy: every record already carries an operator, whose fallback is `USER@hostname`, so the
-  username was never hidden from a reader of the trail. Two harness checks pin the header down to
-  identity-only and pin the audit row's copy plus the clipboard fallback in both dictionaries; a new
-  e2e invariant asserts no `sql_guard_*` tool result contains the database location or a `store` field
-  (the path must not reach a model provider's context if a debug tool is ever added), and one checks
-  that `guard/ping` returns both forms. Five Rust tests cover the folding rules.
+  username was never hidden from a reader of the trail. Seven `guard.js` checks cover it — the header is
+  identity-only, the audit row shows the folded form, the raw one is one hover away, both clipboard
+  branches say what happened, and the copy writes the raw path. The harness now runs the sidecar with
+  `DBX_SQL_GUARD_DB` *and* `HOME` pointing into one throwaway directory, so the two forms are guaranteed
+  to differ and "copied the raw path, not the tilde label" is an assertion rather than a tautology. A new
+  `e2e.js` invariant asserts that no `sql_guard_*` tool result contains the database location or a `store`
+  field — the path must not reach a model provider's context if a debug tool is ever added — and another
+  checks `guard/ping` returns both forms. Five Rust tests cover the folding rules.
   页眉那行原来写着插件身份，后面跟着审计库的绝对路径。绝对路径的头一截就是 OS 用户名，而审批界面是
   会被截图外发的东西；「这是哪个文件」问的是留痕本身，所以路径搬到审计列表下面。`guard/ping` 现在给
   两份：`store` 还是绝对路径（已经读它的东西不受影响），新增 `storeDisplay` 把 home 前缀折成 `~`。
@@ -80,10 +83,12 @@ an in-place rebuild because 0.4.0 is already published: upstream allows rebuildi
   能力门控（`clipboardWrite`）：宿主没给剪贴板时提示实话实说，那一行同时设成 `user-select: all`，
   点一下整段选中，手动复制不必挑字。sidecar 没答上来时那行直说「没有报告位置」，不留一段空路径让人
   以为记录不存在。这是位置的调整，不是保密：每条记录本来就带操作人，而操作人兜底就是 `USER@hostname`，
-  能读留痕的人本来就看得到用户名。两条脚本检查把页眉钉回「只有身份」，并把审计那行文案和剪贴板降级
-  分支钉在两个字典里；e2e 新增一条不变式——任何 `sql_guard_*` 工具的返回里不许出现审计库位置或 `store`
-  字段（将来万一有人加 debug 工具，这条路径不能进模型上下文），另有一条检查 `guard/ping` 两份都给。
-  折叠规则由五个 Rust 测试覆盖。
+  能读留痕的人本来就看得到用户名。`guard.js` 里七条检查覆盖它——页眉只有身份、审计那行显示折叠版、
+  原始路径悬停即现、有剪贴板和没剪贴板两条分支都各自说话、复制写的是原始路径；验证脚本现在把 sidecar
+  的 `DBX_SQL_GUARD_DB` 和 `HOME` 一起指向同一个临时目录，两份路径因此**必然不同**，「复制的是原始版而
+  不是 `~` 版」才是一句断言而不是废话。`e2e.js` 新增一条不变式——任何 `sql_guard_*` 工具的返回里不许
+  出现审计库位置或 `store` 字段（将来万一有人加 debug 工具，这条路径不能进模型上下文），另有一条检查
+  `guard/ping` 两份都给。折叠规则由五个 Rust 测试覆盖。
 - **Documentation reorganization.** The two READMEs were 758 and 639 lines; they are now 164 and 144,
   with the long material moved to `docs/` — `review-model.md`, `host-integration.md`,
   `verify-on-real-host.md`, `known-limits.md`, `internals.md`, each bilingual. Moved text was sliced
