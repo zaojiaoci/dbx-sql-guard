@@ -1,0 +1,10 @@
+{
+  "name": "DBX SQL Guard",
+  "description": "SQL risk review and approval trail for DBX.",
+  "icon": "assets/plugin.svg",
+  "tags": ["sql", "security", "audit", "review"],
+  "source": "https://github.com/zaojiaoci/dbx-sql-guard/tree/v0.4.1",
+  "homepage": "https://github.com/zaojiaoci/dbx-sql-guard",
+  "license": "Apache-2.0",
+  "releaseNotes": "Screen-copy release: the engine, the SQLite store, the hash chain, the CSV export, the rule set and the declared permissions are unchanged, so installing it does not re-ask for consent. The audit database's path moved off the review header — the screen people screenshot — to under the audit list, folded to ~, with the absolute path one hover or one *Copy full path* away; guard/ping gained a display form and no MCP tool result may carry the file location. The host card is renamed to *Connection metadata & estimated rows* and lost its developer-only paragraph, and the AI progress line now says only *Generating…*. Requires DBX >= 0.6.38. Advisory only: DBX has no pre-execution hook, so nothing here blocks a statement from running. Verified with 106 Rust tests and five jsdom harnesses driving the real sidecar, run again against the packaged binary."
+}
