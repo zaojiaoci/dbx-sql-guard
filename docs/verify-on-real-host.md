@@ -11,7 +11,10 @@ Back to [README](../README.md) · [简体中文](verify-on-real-host.zh-CN.md)
    Any other name must go through; **Verify chain** must report the chain intact, and
    approving the same record a second time must be refused. The dialog must show the
    SQL exactly as you typed it, labelled as session-only, while the audit list shows
-   the redacted text.
+   the redacted text. Under that list, *Audit database* must print the path with its home
+   prefix folded to `~`; hovering must reveal the absolute path, and **Copy full path**
+   must put the *absolute* path on the clipboard (the `~` version is wrong in a shell).
+   The header must carry plugin id and version only — no path.
 4. Submit another `DELETE` without a `WHERE` and click **Reject**, leaving your own
    name prefilled: it must go through. Rejecting your own record is allowed; approving
    it is not.

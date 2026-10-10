@@ -8,8 +8,11 @@ UI and the sidecar always ship from the same commit — see [README](README.md#r
 
 Everything that happened after the `v0.4.0` tag was pushed. The engine, the store, the hash chain and
 the declared permissions are untouched — every item below is screen copy, a diagnostic line taken out
-of view, or documentation layout. The version is a patch bump rather than an in-place rebuild because
-0.4.0 is already published: upstream allows rebuilding in place only *before* publication.
+of view, where one line of information about the audit file is placed, or documentation layout. The
+only new code is the `~` folding of that path and the button that copies it; no rule, no record and no
+wire method changed shape (`guard/ping` only gained a field). The version is a patch bump rather than
+an in-place rebuild because 0.4.0 is already published: upstream allows rebuilding in place only
+*before* publication.
 
 - **The AI busy line says only `生成中…` / `Generating…`.** It used to append 「宿主会弹窗要你确认」,
   which the AI card's own notice (`ai.notice`, the paragraph above the two buttons) already states —
@@ -48,6 +51,39 @@ of view, or documentation layout. The version is a patch bump rather than an in-
   是什么形状属于文档（`docs/` 里已有），界面上只留决定这张卡片能不能用的那一句——这些读取都要
   connectionId，而宿主只在从表的右键菜单进入时才把它递过来。「凭据始终在 DBX 手里」那句保留。
   两条脚本检查钉住两个字典里的新文案，并禁止界面文案里再出现 context 形状。逻辑一行没动。
+- **The audit database's path left the header and came back folded.** The line under the plugin name
+  used to read `io.github.zaojiaoci.sql-guard 0.4.1 · /home/<user>/.local/share/com.dbx.app/…/sql_guard.db`.
+  An absolute path's first segment is the OS username, and the review screen is the thing people
+  screenshot and forward, while "which file is this" is a question about the audit trail — so the path
+  now sits under the audit list, where the records are. `guard/ping` answers with two forms: `store`
+  (absolute, unchanged for anyone already reading it) and `storeDisplay`, which folds the home prefix
+  to `~`. The screen prints the folded one, keeps the absolute one in the `title`, and *Copy full path*
+  writes the **absolute** version to the clipboard, because a `~` label pasted into a shell is wrong.
+  Folding is `fold_home` in `main.rs`: an empty home is left alone (an empty prefix matches every
+  path) and a path is folded only when home ends at a directory boundary, so `/home/x` does not turn
+  `/home/xavier/…` into `~avier/…`. Copying is capability-guarded (`clipboardWrite`): with no clipboard
+  the toast says so and the line is styled `user-select: all`, so one click selects the whole path and
+  copying by hand needs no letter-picking. When the sidecar answers nothing, the row says exactly that
+  rather than printing an empty path — a blank there reads as "there are no records". This is placement,
+  not secrecy: every record already carries an operator, whose fallback is `USER@hostname`, so the
+  username was never hidden from a reader of the trail. Two harness checks pin the header down to
+  identity-only and pin the audit row's copy plus the clipboard fallback in both dictionaries; a new
+  e2e invariant asserts no `sql_guard_*` tool result contains the database location or a `store` field
+  (the path must not reach a model provider's context if a debug tool is ever added), and one checks
+  that `guard/ping` returns both forms. Five Rust tests cover the folding rules.
+  页眉那行原来写着插件身份，后面跟着审计库的绝对路径。绝对路径的头一截就是 OS 用户名，而审批界面是
+  会被截图外发的东西；「这是哪个文件」问的是留痕本身，所以路径搬到审计列表下面。`guard/ping` 现在给
+  两份：`store` 还是绝对路径（已经读它的东西不受影响），新增 `storeDisplay` 把 home 前缀折成 `~`。
+  界面显示折叠版，绝对路径挂在 `title` 里，「复制完整路径」写进剪贴板的是**绝对**那份——带 `~` 的粘进
+  shell 是错的。折叠逻辑是 `main.rs` 里的 `fold_home`：home 为空就原样返回（空前缀能匹配任何路径），
+  且只有 home 正好落在目录边界时才折，所以 `/home/x` 不会把 `/home/xavier/…` 折成 `~avier/…`。复制受
+  能力门控（`clipboardWrite`）：宿主没给剪贴板时提示实话实说，那一行同时设成 `user-select: all`，
+  点一下整段选中，手动复制不必挑字。sidecar 没答上来时那行直说「没有报告位置」，不留一段空路径让人
+  以为记录不存在。这是位置的调整，不是保密：每条记录本来就带操作人，而操作人兜底就是 `USER@hostname`，
+  能读留痕的人本来就看得到用户名。两条脚本检查把页眉钉回「只有身份」，并把审计那行文案和剪贴板降级
+  分支钉在两个字典里；e2e 新增一条不变式——任何 `sql_guard_*` 工具的返回里不许出现审计库位置或 `store`
+  字段（将来万一有人加 debug 工具，这条路径不能进模型上下文），另有一条检查 `guard/ping` 两份都给。
+  折叠规则由五个 Rust 测试覆盖。
 - **Documentation reorganization.** The two READMEs were 758 and 639 lines; they are now 164 and 144,
   with the long material moved to `docs/` — `review-model.md`, `host-integration.md`,
   `verify-on-real-host.md`, `known-limits.md`, `internals.md`, each bilingual. Moved text was sliced
@@ -61,13 +97,17 @@ of view, or documentation layout. The version is a patch bump rather than an in-
   验证清单、已知限制完整版、内部实现），搬运是逐字切片并按字节核对过的，没有在搬的过程中改写措辞。
   代码注释原地瘦身：七个文件合计删掉 526 行整行注释，规则是「保留所有 why，删掉所有对 what 的
   复述」，校验方式是把整行注释剥掉之后逐字节比对代码（完全一致）。
-- Verification for the whole bump: `cargo test` (101), `cargo clippy -D warnings`, the four jsdom
-  harnesses green twice — once against the release build and once with `SG_BIN=` pointing at the
-  **extracted 0.4.1 `.dbxp` binary** — and the packaged `ui/index.html` sha256 equals source.
+- Verification for the whole bump: `cargo test` (106 — 101 before the store-path work, plus the five
+  folding tests), `cargo clippy --all-targets -D warnings`, the five jsdom harnesses (`guard`, `plan`,
+  `e2e`, `operator`, `manifest`) green twice — once against the release build and once with `SG_BIN=`
+  pointing at the **extracted 0.4.1 `.dbxp` binary** — and the packaged `ui/index.html` sha256 equals
+  source.
   `manifest.json`, `backend/Cargo.toml` and both READMEs' version line moved together to 0.4.1.
-  这一版的验证：`cargo test`（101）、`cargo clippy -D warnings`、四个 jsdom 脚本跑两轮（一轮对着
-  release 构建，一轮 `SG_BIN=` 指向**解包后的 0.4.1 `.dbxp` 二进制**），包里的 `ui/index.html`
-  sha256 与源码一致；`manifest.json`、`backend/Cargo.toml` 和两个 README 的版本行一起升到 0.4.1。
+  这一版的验证：`cargo test`（106 条——搬路径之前 101 条，加上新写的五条折叠规则）、
+  `cargo clippy --all-targets -D warnings`、五个 jsdom 脚本（guard / plan / e2e / operator / manifest）
+  跑两轮（一轮对着 release 构建，一轮 `SG_BIN=` 指向**解包后的 0.4.1 `.dbxp` 二进制**），包里的
+  `ui/index.html` sha256 与源码一致；`manifest.json`、`backend/Cargo.toml` 和两个 README 的版本行
+  一起升到 0.4.1。
 
 ## 0.4.0 — 2026-10-10
 

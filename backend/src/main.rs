@@ -65,12 +65,14 @@ impl Guard {
     /// 全部 RPC 方法的分发表。返回 Err 会被 SDK 原样写成 JSON-RPC error 对象。
     fn dispatch(&self, method: &str, params: Value) -> Result<Value, PluginError> {
         match method {
-            // 健康检查。UI 启动时先调它确认 sidecar 活着，并把版本号和数据路径显示在页脚。
+            // 健康检查。UI 启动时先调它确认 sidecar 活着：版本进页脚那一行，数据路径只把
+            // 折叠过的 `~` 版本放到审计页（见 store_path_display），原始路径留给复制。
             "guard/ping" => Ok(json!({
                 "ok": true,
                 "plugin": PLUGIN_ID,
                 "version": env!("CARGO_PKG_VERSION"),
-                "store": store_path_label()
+                "store": store_path_label(),
+                "storeDisplay": store_path_display()
             })),
             // 只评估、不落库。UI 的"检查"按钮和 AI 的 sql_guard_analyze 都走这条路。
             "guard/analyze" => {
@@ -212,6 +214,37 @@ impl Guard {
 
 fn store_path_label() -> String {
     SqliteStore::default_path().display().to_string()
+}
+
+/// 界面上显示的路径：把 home 前缀折成 `~`。数据路径本身是要给人看的（备份、迁移、校验前
+/// 总得知道动的是哪个文件），但绝对路径的头一截是 OS 用户名，而审计页那行是会被截图外发的
+/// 位置。原始路径仍然通过 `store` 返回，复制或排查用。
+fn store_path_display() -> String {
+    let raw = store_path_label();
+    for key in ["HOME", "USERPROFILE"] {
+        if let Some(home) = std::env::var_os(key) {
+            let folded = fold_home(&raw, &home.to_string_lossy());
+            if folded != raw {
+                return folded;
+            }
+        }
+    }
+    raw
+}
+
+/// 只在 home 恰好是一段目录边界时才算命中：`/home/x` 不该把 `/home/xavier/…` 折成 `~avier/…`。
+/// home 为空时原样返回——空前缀能匹配任何路径，不挡住就会把一切都折成 `~/…`。
+fn fold_home(raw: &str, home: &str) -> String {
+    let bare = home.trim_end_matches(['/', '\\']);
+    if bare.is_empty() {
+        return raw.to_string();
+    }
+    match raw.strip_prefix(bare) {
+        Some(rest) if rest.is_empty() || rest.starts_with('/') || rest.starts_with('\\') => {
+            format!("~{rest}")
+        }
+        _ => raw.to_string(),
+    }
 }
 
 /// 结构体 → JSON。失败属于内部错误：结构体是我们自己定义的，只有字段里出现非法内容（例如
@@ -426,4 +459,49 @@ fn main() -> std::io::Result<()> {
         },
     )
     .serve()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::fold_home;
+
+    #[test]
+    fn home_prefix_becomes_tilde() {
+        assert_eq!(
+            fold_home("/home/alex/.local/share/x/sql_guard.db", "/home/alex"),
+            "~/.local/share/x/sql_guard.db"
+        );
+    }
+
+    #[test]
+    fn a_trailing_separator_in_home_does_not_double_up() {
+        assert_eq!(fold_home("/home/alex/x", "/home/alex/"), "~/x");
+    }
+
+    #[test]
+    fn a_sibling_sharing_the_prefix_is_not_folded() {
+        assert_eq!(
+            fold_home("/home/alexander/x", "/home/alex"),
+            "/home/alexander/x"
+        );
+    }
+
+    #[test]
+    fn a_windows_profile_folds_on_backslashes_too() {
+        assert_eq!(
+            fold_home(
+                "C:\\Users\\alex\\AppData\\x\\sql_guard.db",
+                "C:\\Users\\alex"
+            ),
+            "~\\AppData\\x\\sql_guard.db"
+        );
+    }
+
+    #[test]
+    fn an_empty_home_leaves_the_path_alone() {
+        assert_eq!(
+            fold_home("/tmp/dbx-sql-guard/sql_guard.db", ""),
+            "/tmp/dbx-sql-guard/sql_guard.db"
+        );
+    }
 }

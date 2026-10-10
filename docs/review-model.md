@@ -108,6 +108,21 @@ is the price of not letting the audit database become a password store. Reviewin
 records at full fidelity would need an explicit opt-in at submit time, which is a
 product decision rather than a bug.
 
+### Where the file is, and what the screen shows
+
+`guard/ping` reports the database location twice: `store` is the absolute path,
+`storeDisplay` has the home prefix folded to `~` (`fold_home` refuses to fold when the
+home is empty or when the path merely *starts* with the same letters as a sibling
+directory). The audit list prints the folded one, with the absolute path one hover away
+and a *Copy full path* button that writes the absolute version — a `~` label pasted into
+a shell is wrong. The header shows plugin id and version only.
+
+The reason is placement, not secrecy. Every record already names its operator, and the
+operator fallback is `USER@hostname`, so the username is not hidden from anyone who can
+read the trail; and the path never reaches a model provider — the MCP tools answer with
+records, not with the filesystem. But the review screen is screenshotted and forwarded,
+and "which file am I backing up" is a question for the audit tab.
+
 ## What cannot enter the chain
 
 The chain is append-only, so a bad record cannot be removed later — validation has to

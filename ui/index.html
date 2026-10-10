@@ -152,6 +152,8 @@
       th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--g-border); vertical-align: top; }
       th { color: var(--g-muted); font-weight: 600; font-size: 11px; white-space: nowrap; }
       td.mono, .mono { font-family: var(--g-mono); font-size: 11px; }
+      /* 没有剪贴板可用时，一次点击就选中整段路径，手动复制不必挑字。 */
+      .select-path { user-select: all; cursor: text; }
       td.sql { max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--g-mono); font-size: 11px; }
       tbody tr.clickable { cursor: pointer; }
       tbody tr.clickable:hover { background: var(--g-surface); }
@@ -440,6 +442,14 @@
             <button class="act" id="next" type="button" data-i18n="audit.next"></button>
             <span class="hint" id="pageInfo" style="align-self: center"></span>
           </div>
+          <!-- 审计库的位置。它属于「留痕存在哪儿」，不属于页眉那行插件身份：绝对路径的头
+               一截是 OS 用户名，而审批界面是要被截图外发的东西。显示的是折成 ~ 的版本，
+               原始路径挂在 title 和复制按钮上——备份、迁移、校验之前总得知道动的是哪个文件。 -->
+          <div class="hint" id="auditStoreRow" hidden>
+            <span data-i18n="audit.storePath"></span>
+            <span class="mono select-path" id="auditStorePath"></span>
+            <button class="act" id="copyStorePath" type="button" data-i18n="audit.storeCopy"></button>
+          </div>
         </div>
         <div class="card" id="detailCard" hidden>
           <h2 data-i18n="audit.detail"></h2>
@@ -676,6 +686,11 @@
           "audit.colSql": "SQL", "audit.prev": "Newer", "audit.next": "Older",
           "audit.empty": "No record matches these filters.",
           "audit.page": "{from}–{to} of {total}",
+          "audit.storePath": "Audit database:",
+          "audit.storeCopy": "Copy full path",
+          "audit.storeCopied": "Full audit database path copied to the clipboard.",
+          "audit.storeNoClipboard": "No clipboard here — click the path once to select it all, then copy.",
+          "audit.storePathNone": "The sidecar did not report where it keeps the audit database.",
           "audit.storedSql": "Stored SQL",
           "audit.redactedHint": "String literals and comments are replaced with ? before the record is written. Identifiers and numbers are kept.",
           "audit.verifyOk": "Chain intact over {n} record(s). No content or decision digest mismatch.",
@@ -851,6 +866,11 @@
           "audit.colSql": "SQL", "audit.prev": "更新", "audit.next": "更早",
           "audit.empty": "没有符合筛选条件的记录。",
           "audit.page": "第 {from}–{to} 条，共 {total} 条",
+          "audit.storePath": "审计库位置：",
+          "audit.storeCopy": "复制完整路径",
+          "audit.storeCopied": "完整路径已复制到剪贴板。",
+          "audit.storeNoClipboard": "这里没有剪贴板可用——点一下上面那段就整段选中，手动复制即可。",
+          "audit.storePathNone": "sidecar 没有报告审计库的位置。",
           "audit.storedSql": "已存储的 SQL",
           "audit.redactedHint": "写入记录前，字符串字面量与注释内容已被替换为 ?；标识符和数字原样保留。",
           "audit.verifyOk": "哈希链完整，共校验 {n} 条记录，内容与决策摘要均无异常。",
@@ -917,6 +937,8 @@
       const state = {
         locale: "en", dict: I18N.en, report: null, record: null, selected: null,
         rules: null, offset: 0, total: 0, items: [], filter: {}, databases: [],
+        // sidecar 报告的审计库原始路径：只用于复制，界面上显示的是折成 ~ 的那份。
+        storePath: "",
         aiBusy: false,
         // recordId -> 提交时的原始 SQL，**只活在本次会话内存里**：审计库永远存脱敏文本（否则审计库
         // 就成了密码本），但审批人光看脱敏文本判断不了影响范围。关工作台即失——"不落库"的必然代价，界面上要如实说明。
@@ -2314,6 +2336,24 @@
         $("next").disabled = to >= state.total;
       }
 
+      function paintStorePath(info) {
+        state.storePath = (info && info.store) || "";
+        const row = $("auditStoreRow");
+        const path = $("auditStorePath");
+        const copy = $("copyStorePath");
+        row.hidden = false;
+        if (!state.storePath) {
+          // sidecar 没答上来时要说实话，不能留一段空路径让人以为审计记录不存在。
+          path.textContent = t("audit.storePathNone");
+          path.removeAttribute("title");
+          copy.disabled = true;
+          return;
+        }
+        path.textContent = info.storeDisplay || state.storePath;
+        path.title = state.storePath;
+        copy.disabled = false;
+      }
+
       function paintDetail(record) {
         $("detailCard").hidden = false;
         const kv = $("detailKv");
@@ -2726,7 +2766,10 @@
         syncContextInputs();
 
         const info = await rpc("guard/ping").catch(() => null);
-        $("meta").textContent = info ? `${info.plugin} ${info.version} · ${info.store}` : "";
+        // 页眉只留插件身份。绝对路径的头一截是 OS 用户名，而这个界面是要被截图外发的东西；
+        // 数据位置改放在审计列表下面，显示折成 ~ 的版本，原始路径留给 title 和复制按钮。
+        $("meta").textContent = info ? `${info.plugin} ${info.version}` : "";
+        paintStorePath(info);
         $("boot").hidden = true;
         // 这张卡片常驻：它装着「读取估算计划行数」和那两格手填的连接/表名，与有没有
         // SQL、有没有解析出模型无关，藏在报告后面反而没人去点。
@@ -2780,6 +2823,20 @@
       $("refresh").addEventListener("click", () => { state.offset = 0; refreshAudit().catch(() => {}); });
       $("verify").addEventListener("click", () => doVerify().catch(() => {}));
       $("export").addEventListener("click", () => doExport().catch(() => {}));
+      // 复制的是原始路径（不是 ~ 折叠版）：拿它去备份、迁移或排查，折叠版直接粘进 shell 是错的。
+      $("copyStorePath").addEventListener("click", async () => {
+        if (!state.storePath) { toast(t("audit.storePathNone"), true); return; }
+        if (bridge.capabilities?.clipboardWrite && bridge.clipboard) {
+          try {
+            await bridge.clipboard.writeText(state.storePath);
+            toast(t("audit.storeCopied"));
+            return;
+          } catch (error) {
+            // 写失败归入「这里没有剪贴板」同一类，落到下面那句可操作的提示，不静默。
+          }
+        }
+        toast(t("audit.storeNoClipboard"), true);
+      });
       $("prev").addEventListener("click", () => {
         state.offset = Math.max(0, state.offset - (state.filter.limit || 50));
         refreshAudit().catch(() => {});
