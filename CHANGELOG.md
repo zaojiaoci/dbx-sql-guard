@@ -6,13 +6,12 @@ UI and the sidecar always ship from the same commit — see [README](README.md#r
 
 ## 0.4.1 — 2026-10-10
 
-Everything that happened after the `v0.4.0` tag was pushed. The engine, the store, the hash chain and
-the declared permissions are untouched — every item below is screen copy, a diagnostic line taken out
-of view, where one line of information about the audit file is placed, or documentation layout. The
-only new code is the `~` folding of that path and the button that copies it; no rule, no record and no
-wire method changed shape (`guard/ping` only gained a field). The version is a patch bump rather than
-an in-place rebuild because 0.4.0 is already published: upstream allows rebuilding in place only
-*before* publication.
+Everything that happened after the published `v0.4.0` tag (commit `1ae1e8b`). The engine, the store,
+the hash chain and the declared permissions are untouched — every item below is screen copy or where
+one line of information about the audit file is placed. The only new code is the `~` folding of that
+path and the button that copies it; no rule, no record and no wire method changed shape
+(`guard/ping` only gained a field). The version is a patch bump rather than an in-place rebuild because
+0.4.0 is already published: upstream allows rebuilding in place only *before* publication.
 
 - **The AI busy line says only `生成中…` / `Generating…`.** It used to append 「宿主会弹窗要你确认」,
   which the AI card's own notice (`ai.notice`, the paragraph above the two buttons) already states —
@@ -22,17 +21,6 @@ an in-place rebuild because 0.4.0 is already published: upstream allows rebuildi
   「生成中……宿主会弹窗要你确认」改成只说「生成中…」。后半句是 AI 卡片开头那段说明（`ai.notice`）
   里已经写着的常态，不该在进度行里重复一遍。脚本钉住的那条「生成失败必须清掉生成中」的检查照旧成立，
   也必须照旧成立——界面上挂着一句假的进度就是说谎。
-- **The AI transport inventory under the two AI buttons is no longer printed.** The line listing
-  the host's nine `ai.*` methods and its `ai*` capabilities answered a developer's question ("what
-  is the host exposing right now"), not an approver's, and the buttons' own disabled state already
-  says what a reviewer needs. `paintAiStatus` keeps building the string behind the existing
-  `SHOW_HOST_DIAGNOSTICS` switch, and keeps the one honest failure line — a host with no `ai`
-  namespace at all. A harness check that reproduces the real 0.6.38 line verbatim moved with it, so
-  the hidden path is still tested.
-  「生成预审意见」下面那串「宿主 AI：九个方法名 · capabilities=…」默认不再打印。它答的是开发期的
-  问题，不是审批人的问题；两颗按钮亮不亮已经说明审批人需要知道的事。构造那段代码原样留着，靠同一个
-  `SHOW_HOST_DIAGNOSTICS` 开关回来，而「宿主根本没有 AI 命名空间」那句实话仍然显示。对着真机 0.6.38
-  逐字比对那行清单的脚本检查跟着一起搬进了开关里，隐藏的那条路径照样有测试。
 - **The host card is named after what it does.** Its heading was still `What the host actually
   told us` — a name from the probe era, when that card *was* the probe — while what it holds now is
   the row-count read the user asked for: the two manual `connectionId` / table inputs, the dialect and
@@ -89,19 +77,6 @@ an in-place rebuild because 0.4.0 is already published: upstream allows rebuildi
   不是 `~` 版」才是一句断言而不是废话。`e2e.js` 新增一条不变式——任何 `sql_guard_*` 工具的返回里不许
   出现审计库位置或 `store` 字段（将来万一有人加 debug 工具，这条路径不能进模型上下文），另有一条检查
   `guard/ping` 两份都给。折叠规则由五个 Rust 测试覆盖。
-- **Documentation reorganization.** The two READMEs were 758 and 639 lines; they are now 164 and 144,
-  with the long material moved to `docs/` — `review-model.md`, `host-integration.md`,
-  `verify-on-real-host.md`, `known-limits.md`, `internals.md`, each bilingual. Moved text was sliced
-  out of the originals and checked byte-for-byte against them, so nothing was reworded on the way; the
-  README keeps a compressed limits list and points at the full one. Code comments were trimmed in
-  place (526 whole-line comments removed across `risk.rs`, `store.rs`, `main.rs`, `model.rs`,
-  `util.rs`, `mcp.rs` and `ui/index.html`) under one rule: keep every *why*, delete every restatement
-  of *what*. Verified by re-checking that the files are identical once comment-only lines are
-  stripped.
-  两个 README 从 758 / 639 行压到 164 / 144 行，长内容整段搬进 `docs/`（判定模型、宿主集成、真机
-  验证清单、已知限制完整版、内部实现），搬运是逐字切片并按字节核对过的，没有在搬的过程中改写措辞。
-  代码注释原地瘦身：七个文件合计删掉 526 行整行注释，规则是「保留所有 why，删掉所有对 what 的
-  复述」，校验方式是把整行注释剥掉之后逐字节比对代码（完全一致）。
 - Verification for the whole bump: `cargo test` (106 — 101 before the store-path work, plus the five
   folding tests), `cargo clippy --all-targets -D warnings`, the five jsdom harnesses (`guard`, `plan`,
   `e2e`, `operator`, `manifest`) green twice — once against the release build and once with `SG_BIN=`
@@ -116,7 +91,7 @@ an in-place rebuild because 0.4.0 is already published: upstream allows rebuildi
 
 ## 0.4.0 — 2026-10-10
 
-Three things from using it, plus one line the plugin was writing about itself.
+Four changes from using it, plus a documentation pass.
 
 - **The pre-review opinion is rendered as Markdown.** Model replies are Markdown; flattened into
   one block of text their headings, bullets and code blocks stop carrying meaning. The supported
@@ -151,6 +126,30 @@ Three things from using it, plus one line the plugin was writing about itself.
   `database` / `schema` 描述的是**被右键那张表**的位置，之前每次计划请求都带上它，于是同库里另一张表
   的探针会被送到一个不含它的命名空间里去查，换回一句「不存在」。现在只有探针确实点名那张表时才带上。
   这是否就是被反馈的那条报错仍未确认——原话没见过；先修掉插件自己能控制的那一条路径。
+- **The AI transport inventory under the two AI buttons is no longer printed.** The line listing
+  the host's nine `ai.*` methods and its `ai*` capabilities answered a developer's question ("what
+  is the host exposing right now"), not an approver's, and the buttons' own disabled state already
+  says what a reviewer needs. `paintAiStatus` keeps building the string behind the existing
+  `SHOW_HOST_DIAGNOSTICS` switch, and keeps the one honest failure line — a host with no `ai`
+  namespace at all. A harness check that reproduces the real 0.6.38 line verbatim moved with it, so
+  the hidden path is still tested.
+  「生成预审意见」下面那串「宿主 AI：九个方法名 · capabilities=…」默认不再打印。它答的是开发期的
+  问题，不是审批人的问题；两颗按钮亮不亮已经说明审批人需要知道的事。构造那段代码原样留着，靠同一个
+  `SHOW_HOST_DIAGNOSTICS` 开关回来，而「宿主根本没有 AI 命名空间」那句实话仍然显示。对着真机 0.6.38
+  逐字比对那行清单的脚本检查跟着一起搬进了开关里，隐藏的那条路径照样有测试。
+- **Documentation reorganization.** The two READMEs were 758 and 639 lines; the material that made
+  them that long now lives in `docs/` — `review-model.md`, `host-integration.md`,
+  `verify-on-real-host.md`, `known-limits.md`, `internals.md`, each bilingual — and the READMEs are
+  168 and 148 lines. Moved text was sliced out of the originals and checked byte-for-byte against
+  them, so nothing was reworded on the way; the README keeps a compressed limits list and points at
+  the full one. Code comments were trimmed in place (526 whole-line comments removed across
+  `risk.rs`, `store.rs`, `main.rs`, `model.rs`, `util.rs`, `mcp.rs` and `ui/index.html`) under one
+  rule: keep every *why*, delete every restatement of *what*. Verified by re-checking that the files
+  are identical once comment-only lines are stripped.
+  两个 README 从 758 / 639 行瘦到 168 / 148 行，长内容整段搬进 `docs/`（判定模型、宿主集成、真机
+  验证清单、已知限制完整版、内部实现），搬运是逐字切片并按字节核对过的，没有在搬的过程中改写措辞。
+  代码注释原地瘦身：七个文件合计删掉 526 行整行注释，规则是「保留所有 why，删掉所有对 what 的
+  复述」，校验方式是把整行注释剥掉之后逐字节比对代码（完全一致）。
 - Storage, the hash chain, the CSV columns, the rule set and the declared permissions are
   unchanged; no new `requires`, so installing it does not re-ask for consent.
   存储、哈希链、CSV 列、规则集和声明的权限都没变，不新增 `requires`。
