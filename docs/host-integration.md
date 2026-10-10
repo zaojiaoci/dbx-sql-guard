@@ -131,7 +131,7 @@ a table's right-click menu puts `{connectionId, database, schema, table}` into `
 the review tab reads once per `(connectionId, database, schema, table)` and caches it for the
 session. From the plugin center or the bottom dock, `context` is `{}` or
 `{workbenchId, restored, surface}` — no `connectionId` — and nothing is read. Typing a
-connection id and a table into the **What the host actually told us** card works too, since
+connection id and a table into the **Connection metadata & estimated rows** card works too, since
 those inputs feed the same target lookup.
 
 **What crosses the RPC boundary.** Only `name` and `nullable` per column. `dataType`,

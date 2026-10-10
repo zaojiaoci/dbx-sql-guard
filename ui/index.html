@@ -605,7 +605,7 @@
           "ai.noChat": "This host exposes no ai.openConversation.",
           "ai.noModel": "No usable model came back from the host — what it actually returned is shown below. Try 'Continue in AI chat'.",
           "ai.discoveryFailed": "Model discovery threw: {message}",
-          "ai.working": "Generating… the host will ask you to confirm.",
+          "ai.working": "Generating…",
           "ai.empty": "The model returned no text.",
           "ai.failed": "AI generation failed: {message}",
           "ai.chatOpened": "Sent the report to the DBX AI panel.",
@@ -618,8 +618,8 @@
           "ai.chatGuard": "Advise only: you cannot approve or reject this, so never state a decision. Do not invent row counts, table sizes or schema facts you were not given.",
           "ai.chatHostNote": "DBX, not this plugin, decides whether that prompt actually runs: it sends only if a model is selected in the AI panel's model menu. If DBX says \"AI is not configured\" or \"For plugin analysis, select an HTTP model or Ollama\", pick a model there and resend — the pre-review you just saw can work while the panel has no model, because generateText resolves one by id. This plugin cannot see the outcome.",
           "ai.truncated": "The SQL was cut to {chars} characters to fit the prompt limit, so the opinion only covers that part.",
-          "host.title": "What the host actually told us",
-          "host.notice": "Read-only probe of the connection-scoped host APIs. DBX keeps every credential; the plugin only ever sees an id, metadata and an estimated plan. These reads need a connectionId, and the host only passes one when this workbench is opened from a table's right-click menu — entering from the Plugin Center or the bottom dock yields {workbenchId, surface, restored} and no connection.",
+          "host.title": "Connection metadata & estimated rows",
+          "host.notice": "Every read here needs a connectionId, and the host only passes one when this workbench is opened from a table's right-click menu — entering from the Plugin Center or the bottom dock means typing it in. Credentials stay with DBX; the plugin sees an id, metadata and an estimated plan.",
           "host.connectionId": "connectionId (the id, not the connection's display name)",
           "host.table": "Table",
           "host.probe": "Dump context + capabilities",
@@ -780,7 +780,7 @@
           "ai.noChat": "宿主没有提供 ai.openConversation。",
           "ai.noModel": "宿主没能给出可用的模型——它实际返回的内容显示在下方。改用「在 AI 对话中继续」。",
           "ai.discoveryFailed": "模型发现调用抛错：{message}",
-          "ai.working": "生成中……宿主会弹窗要你确认。",
+          "ai.working": "生成中…",
           "ai.empty": "模型没有返回文本。",
           "ai.failed": "AI 生成失败：{message}",
           "ai.chatOpened": "已把这份报告交给 DBX AI 面板。",
@@ -793,8 +793,8 @@
           "ai.chatGuard": "只给建议：你既不能批准也不能驳回，所以不要给出或暗示任何结论。不要编造行数、表大小或没有给你的 schema 事实。",
           "ai.chatHostNote": "那条 prompt 到底有没有真的发出去，是 DBX 决定的，不是这个插件：只有 AI 面板的模型菜单里选了模型，它才会发送。如果 DBX 提示「AI 尚未配置。请在 设置 > AI 中配置你的 AI 服务。」或「插件分析请在模型菜单中选择 HTTP 模型或 Ollama。」，请在面板里选模型后重发——你刚看到的预审意见能出来说明 generateText 按 id 解析到了模型，而对话面板可能一个模型都没选。插件看不到这个结果。",
           "ai.truncated": "SQL 太长，已截到 {chars} 字符以符合 prompt 上限，意见只覆盖前半部分。",
-          "host.title": "宿主到底告诉了我们什么",
-          "host.notice": "对宿主「按连接的只读 API」做一次探测。凭据始终在 DBX 手里，插件能看到的只有连接 id、元数据和估算计划。要从表的右键菜单进入本工作台，宿主才会把 TableContext 传进来；从插件中心或底部面板进来，context 里只有 {workbenchId, surface, restored}，没有任何连接信息。",
+          "host.title": "连接元数据与估算行数",
+          "host.notice": "这里的每一项读取都要 connectionId，而宿主只有在你从表的右键菜单进入本工作台时才会把它传进来；从插件中心或底部面板进来，就得在这里手填。凭据始终在 DBX 手里，插件能看到的只有连接 id、元数据和估算计划。",
           "host.connectionId": "connectionId（是 id，不是连接显示名）",
           "host.table": "表名",
           "host.probe": "打印 context + capabilities",
@@ -2567,7 +2567,8 @@
         }
       }
 
-      /// 宿主按连接只读接口的探测面板（诊断用，不是产品功能）。唯一目的：把
+      /// 宿主按连接只读接口的诊断读取（不是产品功能，被 SHOW_HOST_DIAGNOSTICS 收着）。
+      /// 唯一目的：把
       /// `getPlanCapabilities` / `getTableMetadata` 的**原始返回**摊出来，好判断"估算影响
       /// 行数"和"真实列类型"这两条路在真机上能走多远。凭据一概不碰。
       function bridgeMethod(name) {
@@ -2619,7 +2620,7 @@
       }
 
       /// 宿主把 TableContext 推进来时（右键进入、或用户换了表），把 connectionId 和表名填进
-      /// 探测面板。已手填过的值不覆盖——那是用户在看另一条连接的结果，被推送冲掉会让人
+      /// 这张卡片。已手填过的值不覆盖——那是用户在看另一条连接的结果，被推送冲掉会让人
       /// 分不清哪份返回属于哪条连接。
       function syncHostInputs() {
         const context = state.context || {};
@@ -2727,8 +2728,8 @@
         const info = await rpc("guard/ping").catch(() => null);
         $("meta").textContent = info ? `${info.plugin} ${info.version} · ${info.store}` : "";
         $("boot").hidden = true;
-        // 探测面板常驻：它报"这台宿主能告诉我们什么"，与有没有 SQL、有没有解析出模型无关，
-        // 藏在报告后面反而没人去点。
+        // 这张卡片常驻：它装着「读取估算计划行数」和那两格手填的连接/表名，与有没有
+        // SQL、有没有解析出模型无关，藏在报告后面反而没人去点。
         $("hostCard").hidden = false;
         syncHostInputs();
 

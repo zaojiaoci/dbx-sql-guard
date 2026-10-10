@@ -4,7 +4,7 @@
 
 SQL risk review and approval trail for DBX: a Rust sidecar that rates SQL statements offline,
 keeps a hash-chained audit log in SQLite, and a sandboxed workbench that reviews, approves and
-exports it. Version 0.4.0, validated against DBX 0.6.38.
+exports it. Version 0.4.1, validated against DBX 0.6.38.
 
 Generated from the `dbx-plugin create --template rust` scaffold, then rewritten. Code comments
 are in Chinese; the UI and the docs are bilingual.

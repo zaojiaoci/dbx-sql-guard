@@ -46,8 +46,8 @@ Back to [README](../README.md) · [简体中文](verify-on-real-host.zh-CN.md)
     comments and whitespace*, with no risk badge and no "auto-approve" claim, because a low-risk
     verdict for text that was never a statement is a lie. Delete the two dashes and it is a real
     statement you can review; clear the box and the same table must not push the template back.
-    The **What the host
-    actually told us** card must already carry the connection and table it was handed, and after
+    The **Connection metadata &
+    estimated rows** card must already carry the connection and table it was handed, and after
     **Analyze** its dialect and plan-support line must be filled in — that is
     `getPlanCapabilities` and `getTableMetadata` having been read on its own, without a click.
     Opened from the plugin center or the bottom dock instead, `context` carries only

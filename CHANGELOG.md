@@ -4,24 +4,70 @@ Versions in `manifest.json`, `backend/Cargo.toml` and this file are kept in lock
 The installable `ui/index.html` is copied from the repository root at package time, so the
 UI and the sidecar always ship from the same commit — see [README](README.md#release).
 
-## Documentation reorganization — 2026-10-10 (no version bump)
+## 0.4.1 — 2026-10-10
 
-The two READMEs were 758 and 639 lines; they are now 164 and 144, with the long material moved to
-`docs/` — `review-model.md`, `host-integration.md`, `verify-on-real-host.md`, `known-limits.md`,
-`internals.md`, each bilingual. Moved text was sliced out of the originals and checked
-byte-for-byte against them, so nothing was reworded on the way; the README keeps a compressed
-limits list and points at the full one. Code comments were trimmed in place (526 whole-line
-comments removed across `risk.rs`, `store.rs`, `main.rs`, `model.rs`, `util.rs`, `mcp.rs` and
-`ui/index.html`) under one rule: keep every *why*, delete every restatement of *what*. Verified by
-re-checking that the files are identical once comment-only lines are stripped, then
-`cargo test` (101), `cargo clippy -D warnings`, and the four jsdom harnesses.
-No behaviour changed, so `manifest.json` still says 0.4.0; `dist/` was repackaged to match source.
-两个 README 从 758 / 639 行压到 164 / 144 行，长内容整段搬进 `docs/`（判定模型、宿主集成、真机
-验证清单、已知限制完整版、内部实现），搬运是逐字切片并按字节核对过的，没有在搬的过程中改写措辞。
-代码注释原地瘦身：七个文件合计删掉 526 行整行注释，规则是「保留所有 why，删掉所有对 what 的
-复述」。校验方式是把整行注释剥掉之后逐字节比对代码（完全一致），再跑 `cargo test`、
-`cargo clippy -D warnings` 和四个 jsdom 脚本。行为没有变化，版本号仍是 0.4.0，`dist/` 重新打包
-以匹配源码。
+Everything that happened after the `v0.4.0` tag was pushed. The engine, the store, the hash chain and
+the declared permissions are untouched — every item below is screen copy, a diagnostic line taken out
+of view, or documentation layout. The version is a patch bump rather than an in-place rebuild because
+0.4.0 is already published: upstream allows rebuilding in place only *before* publication.
+
+- **The AI busy line says only `生成中…` / `Generating…`.** It used to append 「宿主会弹窗要你确认」,
+  which the AI card's own notice (`ai.notice`, the paragraph above the two buttons) already states —
+  so the progress line was repeating a standing fact while you wait. The harness check that a failed
+  generation clears the line still matches, and still has to: a stale `生成中…` on screen is a lie
+  about work in progress.
+  「生成中……宿主会弹窗要你确认」改成只说「生成中…」。后半句是 AI 卡片开头那段说明（`ai.notice`）
+  里已经写着的常态，不该在进度行里重复一遍。脚本钉住的那条「生成失败必须清掉生成中」的检查照旧成立，
+  也必须照旧成立——界面上挂着一句假的进度就是说谎。
+- **The AI transport inventory under the two AI buttons is no longer printed.** The line listing
+  the host's nine `ai.*` methods and its `ai*` capabilities answered a developer's question ("what
+  is the host exposing right now"), not an approver's, and the buttons' own disabled state already
+  says what a reviewer needs. `paintAiStatus` keeps building the string behind the existing
+  `SHOW_HOST_DIAGNOSTICS` switch, and keeps the one honest failure line — a host with no `ai`
+  namespace at all. A harness check that reproduces the real 0.6.38 line verbatim moved with it, so
+  the hidden path is still tested.
+  「生成预审意见」下面那串「宿主 AI：九个方法名 · capabilities=…」默认不再打印。它答的是开发期的
+  问题，不是审批人的问题；两颗按钮亮不亮已经说明审批人需要知道的事。构造那段代码原样留着，靠同一个
+  `SHOW_HOST_DIAGNOSTICS` 开关回来，而「宿主根本没有 AI 命名空间」那句实话仍然显示。对着真机 0.6.38
+  逐字比对那行清单的脚本检查跟着一起搬进了开关里，隐藏的那条路径照样有测试。
+- **The host card is named after what it does.** Its heading was still `What the host actually
+  told us` — a name from the probe era, when that card *was* the probe — while what it holds now is
+  the row-count read the user asked for: the two manual `connectionId` / table inputs, the dialect and
+  plan-support line, and *Read estimated plan rows*, whose raw plan JSON is printed right there. The
+  heading is now `Connection metadata & estimated rows` / 「连接元数据与估算行数」, and the paragraph
+  under it lost its developer content: the sentence explaining that `context` is
+  `{workbenchId, restored, surface}` on other entry points is documentation (it is in
+  `docs/verify-on-real-host.md` and `docs/host-integration.md`), so the notice now says only the one
+  thing that decides whether the card is usable — *these reads need a connectionId, and the host
+  only hands one over when you enter from a table's right-click menu*. Credentials-stay-with-DBX
+  stayed. Two harness checks pin the new copy in both dictionaries and forbid a context-shape dump
+  in UI text. No logic changed.
+  这张卡片的标题还叫「宿主到底告诉了我们什么」——那是它当探针面板时的名字，而现在它装的是用户要求的
+  行数的读取：手填的连接/表名两格、方言与计划支持、「读取估算计划行数」，以及宿主返回的原始计划
+  JSON。标题改成「连接元数据与估算行数」，标题下面那段话把开发内容拿掉了：解释 `context` 在各入口
+  是什么形状属于文档（`docs/` 里已有），界面上只留决定这张卡片能不能用的那一句——这些读取都要
+  connectionId，而宿主只在从表的右键菜单进入时才把它递过来。「凭据始终在 DBX 手里」那句保留。
+  两条脚本检查钉住两个字典里的新文案，并禁止界面文案里再出现 context 形状。逻辑一行没动。
+- **Documentation reorganization.** The two READMEs were 758 and 639 lines; they are now 164 and 144,
+  with the long material moved to `docs/` — `review-model.md`, `host-integration.md`,
+  `verify-on-real-host.md`, `known-limits.md`, `internals.md`, each bilingual. Moved text was sliced
+  out of the originals and checked byte-for-byte against them, so nothing was reworded on the way; the
+  README keeps a compressed limits list and points at the full one. Code comments were trimmed in
+  place (526 whole-line comments removed across `risk.rs`, `store.rs`, `main.rs`, `model.rs`,
+  `util.rs`, `mcp.rs` and `ui/index.html`) under one rule: keep every *why*, delete every restatement
+  of *what*. Verified by re-checking that the files are identical once comment-only lines are
+  stripped.
+  两个 README 从 758 / 639 行压到 164 / 144 行，长内容整段搬进 `docs/`（判定模型、宿主集成、真机
+  验证清单、已知限制完整版、内部实现），搬运是逐字切片并按字节核对过的，没有在搬的过程中改写措辞。
+  代码注释原地瘦身：七个文件合计删掉 526 行整行注释，规则是「保留所有 why，删掉所有对 what 的
+  复述」，校验方式是把整行注释剥掉之后逐字节比对代码（完全一致）。
+- Verification for the whole bump: `cargo test` (101), `cargo clippy -D warnings`, the four jsdom
+  harnesses green twice — once against the release build and once with `SG_BIN=` pointing at the
+  **extracted 0.4.1 `.dbxp` binary** — and the packaged `ui/index.html` sha256 equals source.
+  `manifest.json`, `backend/Cargo.toml` and both READMEs' version line moved together to 0.4.1.
+  这一版的验证：`cargo test`（101）、`cargo clippy -D warnings`、四个 jsdom 脚本跑两轮（一轮对着
+  release 构建，一轮 `SG_BIN=` 指向**解包后的 0.4.1 `.dbxp` 二进制**），包里的 `ui/index.html`
+  sha256 与源码一致；`manifest.json`、`backend/Cargo.toml` 和两个 README 的版本行一起升到 0.4.1。
 
 ## 0.4.0 — 2026-10-10
 
@@ -60,17 +106,6 @@ Three things from using it, plus one line the plugin was writing about itself.
   `database` / `schema` 描述的是**被右键那张表**的位置，之前每次计划请求都带上它，于是同库里另一张表
   的探针会被送到一个不含它的命名空间里去查，换回一句「不存在」。现在只有探针确实点名那张表时才带上。
   这是否就是被反馈的那条报错仍未确认——原话没见过；先修掉插件自己能控制的那一条路径。
-- **The AI transport inventory under the two AI buttons is no longer printed.** The line listing
-  the host's nine `ai.*` methods and its `ai*` capabilities answered a developer's question ("what
-  is the host exposing right now"), not an approver's, and the buttons' own disabled state already
-  says what a reviewer needs. `paintAiStatus` keeps building the string behind the existing
-  `SHOW_HOST_DIAGNOSTICS` switch, and keeps the one honest failure line — a host with no `ai`
-  namespace at all. A harness check that reproduces the real 0.6.38 line verbatim moved with it, so
-  the hidden path is still tested.
-  「生成预审意见」下面那串「宿主 AI：九个方法名 · capabilities=…」默认不再打印。它答的是开发期的
-  问题，不是审批人的问题；两颗按钮亮不亮已经说明审批人需要知道的事。构造那段代码原样留着，靠同一个
-  `SHOW_HOST_DIAGNOSTICS` 开关回来，而「宿主根本没有 AI 命名空间」那句实话仍然显示。对着真机 0.6.38
-  逐字比对那行清单的脚本检查跟着一起搬进了开关里，隐藏的那条路径照样有测试。
 - Storage, the hash chain, the CSV columns, the rule set and the declared permissions are
   unchanged; no new `requires`, so installing it does not re-ask for consent.
   存储、哈希链、CSV 列、规则集和声明的权限都没变，不新增 `requires`。

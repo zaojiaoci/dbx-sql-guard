@@ -104,7 +104,7 @@ openConversation, setRecommendations`），且 `bridge.capabilities` 里 `ai`、
 有 `{connectionId, database, schema, table}`，于是按 `(connectionId, database, schema,
 table)` 这个组合读一次、在这一页的生命周期里缓存。从插件中心或底部面板进来时，
 `context` 是 `{}` 或 `{workbenchId, restored, surface}`——没有 connectionId——
-于是根本不读。在「宿主到底告诉了我们什么」卡片里手填连接 id 和表名同样有效，
+于是根本不读。在「连接元数据与估算行数」卡片里手填连接 id 和表名同样有效，
 那两个输入框走的是同一套目标解析。
 
 **允许跨过 RPC 边界的。** 每列只有 `name` 和 `nullable`。`dataType`、`length`、
