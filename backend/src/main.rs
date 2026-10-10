@@ -31,7 +31,7 @@ const PLUGIN_ID: &str = "io.github.zaojiaoci.sql-guard";
 const MAX_SQL_CHARS: usize = 200_000;
 
 /// handler 本体。SDK 要求它 `Send + Sync` 并被 Arc 共享给所有 worker 线程，所以内部只放一个
-/// `Arc<dyn GuardStore>`：换存储实现（例如企业版走远端服务）只需改 main() 里的构造，其余不动。
+/// `Arc<dyn GuardStore>`：换存储实现只需改 main() 里的构造，其余不动。
 pub struct Guard {
     store: Arc<dyn GuardStore>,
 }
