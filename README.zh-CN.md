@@ -142,3 +142,7 @@ npx @dbx-app/plugin-cli package .
 
 未签名的候选包和源码留在本仓库；DBX 用户安装的是官方目录里已签名的产物。
 插件源码不要提交到 `t8y2/dbx`。
+
+## 开源协议
+
+Apache-2.0，见 [LICENSE](LICENSE)。

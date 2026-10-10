@@ -162,3 +162,7 @@ behind each one is in [docs/known-limits.md](docs/known-limits.md).
 
 Unsigned candidates and source stay here; DBX users install the signed assets from the official
 catalog. Plugin source does not belong in `t8y2/dbx`.
+
+## License
+
+Apache-2.0. See [LICENSE](LICENSE).
