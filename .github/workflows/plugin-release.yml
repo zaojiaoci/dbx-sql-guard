@@ -1,0 +1,22 @@
+name: Release DBX plugin
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    uses: t8y2/dbx/.github/workflows/plugin-release-reusable.yml@plugin-sdk-v1
+    with:
+      release-tag: ${{ github.event.release.tag_name }}
+      package-command: dbx-plugin package .
+      package-path: dist/*.dbxp
+      metadata-path: dist/*.artifact.json
+      plugin-cli-version: 0.1.6
+      # The CLI builds the Rust sidecar for the host it runs on and refuses a
+      # --target that differs, so every platform needs its own runner. Pinned
+      # explicitly instead of relying on the reusable workflow's default matrix.
+      build-matrix: '{"include":[{"runner":"ubuntu-24.04","target":"linux-x64"},{"runner":"ubuntu-24.04-arm","target":"linux-arm64"},{"runner":"windows-2022","target":"windows-x64"},{"runner":"macos-15-intel","target":"darwin-x64"},{"runner":"macos-15","target":"darwin-arm64"}]}'

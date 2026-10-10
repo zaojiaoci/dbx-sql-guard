@@ -1,0 +1,6 @@
+/dist/
+/.dbx-dev/
+/backend/target/
+.dbx-repository-signing-key.env
+.DS_Store
+*.log

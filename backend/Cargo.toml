@@ -1,0 +1,31 @@
+[package]
+name = "dbx-plugin-sql-guard"
+version = "0.4.0"
+edition = "2021"
+license = "Apache-2.0"
+
+[workspace]
+
+[dependencies]
+# dbx-plugin-sdk is not published to crates.io; the dbx-plugin CLI patches it to
+# its bundled copy. Keep the registry form plus the patch below rather than a path
+# dependency: the CLI builds with --locked and injects its own patch for this crate,
+# and a path dependency leaves that injected patch unused, which cargo wants to
+# record as [[patch.unused]] — a lock update --locked refuses. The vendored source
+# is Apache-2.0 and byte-identical to the CLI's copy.
+dbx-plugin-sdk = { version = "0.1.0" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.32", features = ["bundled"] }
+sha2 = "0.10"
+
+[patch.crates-io]
+dbx-plugin-sdk = { path = "../vendor/dbx-plugin-sdk" }
+
+# The host loads this sidecar per plugin, so keep the binary small. panic must stay
+# "unwind": main.rs turns a panic in the handler into a protocol error, and with
+# "abort" the whole sidecar would die instead.
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1

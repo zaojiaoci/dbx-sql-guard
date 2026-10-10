@@ -1,0 +1,15 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景：深色 -->
+  <rect width="64" height="64" rx="12" fill="#0F172A"/>
+  <!-- SQL 文字 -->
+  <text x="32" y="38" font-family="Arial, sans-serif" font-weight="900" font-size="20" fill="#FFFFFF" text-anchor="middle">SQL</text>
+  <!-- 替换为：绿色扫描线/雷达波，象征实时监控 -->
+  <path d="M10 32 Q32 10 54 32 Q32 54 10 32" stroke="#10B981" stroke-width="2" fill="none" opacity="0.6"/>
+  <circle cx="32" cy="32" r="4" fill="#10B981"/>
+  <!-- 扫描线动画示意（静态图中用一条亮线表示） -->
+  <line x1="32" y1="32" x2="50" y2="20" stroke="#10B981" stroke-width="2" stroke-linecap="round"/>
+</svg>
+
+
+
+

@@ -1,0 +1,2807 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DBX SQL Guard</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --g-fg: var(--color-foreground, #18181b);
+        --g-bg: var(--color-background, #fff);
+        --g-border: color-mix(in srgb, var(--g-fg) 14%, transparent);
+        --g-muted: color-mix(in srgb, var(--g-fg) 58%, transparent);
+        --g-surface: color-mix(in srgb, var(--g-fg) 4%, transparent);
+        --g-surface-strong: color-mix(in srgb, var(--g-fg) 8%, transparent);
+        --g-radius: var(--radius-md, 8px);
+        --g-mono: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: var(--font-sans, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif);
+        font-size: 13px;
+        line-height: 1.5;
+        background: var(--g-bg);
+        color: var(--g-fg);
+      }
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 10px;
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--g-border);
+      }
+      header h1 { margin: 0; font-size: 15px; font-weight: 650; }
+      header .meta { color: var(--g-muted); font-size: 11px; font-family: var(--g-mono); }
+      nav {
+        display: flex;
+        gap: 2px;
+        padding: 0 12px;
+        border-bottom: 1px solid var(--g-border);
+        background: var(--g-surface);
+      }
+      nav button {
+        appearance: none;
+        border: 0;
+        border-bottom: 2px solid transparent;
+        background: transparent;
+        color: var(--g-muted);
+        font: inherit;
+        font-weight: 550;
+        padding: 9px 14px;
+        cursor: pointer;
+      }
+      nav button[aria-selected="true"] {
+        color: var(--g-fg);
+        border-bottom-color: var(--color-primary, #2563eb);
+      }
+      main { padding: 16px 18px 40px; }
+      section[hidden] { display: none; }
+      h2 { margin: 0 0 10px; font-size: 13px; font-weight: 650; }
+      .grid { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+      @media (min-width: 940px) { .grid.split { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); } }
+      .card {
+        border: 1px solid var(--g-border);
+        border-radius: var(--g-radius);
+        padding: 14px;
+        background: var(--g-bg);
+      }
+      .card + .card { margin-top: 14px; }
+      label { display: block; margin-bottom: 3px; color: var(--g-muted); font-size: 11px; font-weight: 550; }
+      input[type="text"], input[type="number"], select, textarea {
+        width: 100%;
+        padding: 7px 9px;
+        border: 1px solid var(--g-border);
+        border-radius: var(--g-radius);
+        background: var(--g-bg);
+        color: var(--g-fg);
+        font: inherit;
+      }
+      textarea { font-family: var(--g-mono); font-size: 12px; resize: vertical; }
+      input:read-only { color: var(--g-muted); background: var(--g-surface); }
+      .row { display: flex; flex-wrap: wrap; gap: 10px; }
+      .row > div { flex: 1 1 150px; min-width: 0; }
+      .field { margin-bottom: 10px; }
+      .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+      button.act {
+        appearance: none;
+        border: 1px solid var(--g-border);
+        border-radius: var(--g-radius);
+        background: var(--g-surface);
+        color: var(--g-fg);
+        font: inherit;
+        font-weight: 550;
+        padding: 7px 14px;
+        cursor: pointer;
+      }
+      button.act:hover:not(:disabled) { background: var(--g-surface-strong); }
+      button.act:disabled { opacity: .45; cursor: not-allowed; }
+      button.act.primary {
+        background: var(--color-primary, #2563eb);
+        border-color: transparent;
+        color: var(--color-primary-foreground, #fff);
+      }
+      button.act.danger { --g-accent: #e5484d; }
+      button.act.good { --g-accent: #16a34a; }
+      button.act.danger, button.act.good {
+        border-color: color-mix(in srgb, var(--g-accent) 45%, transparent);
+        color: var(--g-accent);
+        background: color-mix(in srgb, var(--g-accent) 10%, transparent);
+      }
+      .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 650;
+        border: 1px solid color-mix(in srgb, var(--g-accent, #6b7280) 42%, transparent);
+        background: color-mix(in srgb, var(--g-accent, #6b7280) 14%, transparent);
+        color: var(--g-accent, #6b7280);
+      }
+      .risk-high, .st-pending { --g-accent: #e5484d; }
+      .risk-medium, .st-rejected { --g-accent: #d97706; }
+      .risk-low, .st-approved, .st-autoApproved { --g-accent: #16a34a; }
+      pre {
+        margin: 0;
+        padding: 10px;
+        max-height: 260px;
+        overflow: auto;
+        border: 1px solid var(--g-border);
+        border-radius: var(--g-radius);
+        background: var(--g-surface);
+        font-family: var(--g-mono);
+        font-size: 12px;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      ul.findings { list-style: none; margin: 0; padding: 0; }
+      ul.findings li {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+        padding: 7px 0;
+        border-top: 1px solid var(--g-border);
+      }
+      ul.findings li:first-child { border-top: 0; }
+      ul.findings .msg { flex: 1 1 auto; min-width: 0; }
+      ul.findings .code { color: var(--g-muted); font-family: var(--g-mono); font-size: 11px; }
+      table { width: 100%; border-collapse: collapse; font-size: 12px; }
+      th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--g-border); vertical-align: top; }
+      th { color: var(--g-muted); font-weight: 600; font-size: 11px; white-space: nowrap; }
+      td.mono, .mono { font-family: var(--g-mono); font-size: 11px; }
+      td.sql { max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--g-mono); font-size: 11px; }
+      tbody tr.clickable { cursor: pointer; }
+      tbody tr.clickable:hover { background: var(--g-surface); }
+      tbody tr[aria-selected="true"] { background: var(--g-surface-strong); }
+      .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+      .chip {
+        border: 1px solid var(--g-border);
+        border-radius: var(--g-radius);
+        padding: 6px 10px;
+        background: var(--g-surface);
+      }
+      .chip b { display: block; font-size: 16px; font-weight: 650; }
+      .chip span { color: var(--g-muted); font-size: 11px; }
+      .notice {
+        border: 1px solid color-mix(in srgb, #d97706 40%, transparent);
+        background: color-mix(in srgb, #d97706 10%, transparent);
+        border-radius: var(--g-radius);
+        padding: 10px 12px;
+        margin-bottom: 14px;
+        font-size: 12px;
+      }
+      .banner { border-radius: var(--g-radius); padding: 10px 12px; margin-bottom: 12px; font-size: 12px; }
+      .banner.ok { border: 1px solid color-mix(in srgb, #16a34a 40%, transparent); background: color-mix(in srgb, #16a34a 10%, transparent); }
+      .banner.bad { border: 1px solid color-mix(in srgb, #e5484d 40%, transparent); background: color-mix(in srgb, #e5484d 10%, transparent); }
+      .kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; font-size: 12px; }
+      .kv dt { color: var(--g-muted); }
+      .kv dd { margin: 0; font-family: var(--g-mono); font-size: 11px; word-break: break-all; }
+      .checks { display: grid; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+      .checks label { display: flex; align-items: center; gap: 7px; margin: 0; color: var(--g-fg); font-size: 12px; font-weight: 450; }
+      .checks input { width: auto; }
+      .empty { color: var(--g-muted); padding: 14px 0; text-align: center; }
+      #toast {
+        position: fixed;
+        left: 50%;
+        bottom: 22px;
+        transform: translateX(-50%);
+        max-width: min(560px, 90vw);
+        padding: 9px 14px;
+        border-radius: var(--g-radius);
+        border: 1px solid var(--g-border);
+        background: var(--g-surface-strong);
+        color: var(--g-fg);
+        font-size: 12px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .18s;
+      }
+      #toast.show { opacity: 1; }
+      #toast.error { border-color: color-mix(in srgb, #e5484d 55%, transparent); color: #e5484d; }
+      #overlay {
+        position: fixed;
+        inset: 0;
+        display: none;
+        place-items: center;
+        padding: 20px;
+        background: color-mix(in srgb, #000 42%, transparent);
+      }
+      #overlay.show { display: grid; }
+      #overlay .card { width: min(560px, 100%); max-height: 84vh; overflow: auto; margin: 0; }
+      .hint { color: var(--g-muted); font-size: 11px; margin-top: 4px; }
+      /* 预审意见是模型写的 Markdown，节点全部用 createElement + textContent 建，没有
+         innerHTML——所以加粗、列表、代码块只是*排版*，不是*标记*，模型返回的东西永远
+         成不了 DOM。 */
+      .ai-md {
+        margin-top: 10px;
+        padding: 10px 12px;
+        border: 1px solid var(--g-border);
+        border-radius: var(--g-radius);
+        background: var(--g-surface);
+        font-size: 12px;
+        line-height: 1.6;
+        overflow-wrap: anywhere;
+        max-height: 340px;
+        overflow: auto;
+      }
+      .ai-md > *:first-child { margin-top: 0; }
+      .ai-md > *:last-child { margin-bottom: 0; }
+      .ai-md p { margin: 6px 0; }
+      .ai-md .md-h { margin: 10px 0 4px; font-weight: 600; font-size: 12.5px; }
+      .ai-md ul, .ai-md ol { margin: 6px 0; padding-left: 20px; }
+      .ai-md li { margin: 2px 0; }
+      .ai-md .md-quote {
+        margin: 6px 0;
+        padding-left: 9px;
+        border-left: 2px solid var(--g-border);
+        color: var(--g-muted);
+      }
+      .ai-md .md-rule { margin: 10px 0; border: 0; border-top: 1px solid var(--g-border); }
+      .ai-md code, .ai-md .md-code {
+        font-family: var(--g-mono);
+        font-size: 11px;
+      }
+      .ai-md code {
+        padding: 1px 4px;
+        border: 1px solid var(--g-border);
+        border-radius: 3px;
+        background: color-mix(in srgb, var(--g-surface) 60%, transparent);
+      }
+      .ai-md .md-code {
+        display: block;
+        margin: 6px 0;
+        padding: 8px 10px;
+        border: 1px solid var(--g-border);
+        border-radius: var(--g-radius);
+        background: var(--g-bg);
+        white-space: pre-wrap;
+      }
+      .ai-md strong { font-weight: 600; }
+      .ai-md em { font-style: italic; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1 id="title">DBX SQL Guard</h1>
+      <span class="meta" id="meta"></span>
+    </header>
+    <nav role="tablist">
+      <button type="button" role="tab" data-tab="review" aria-selected="true"></button>
+      <button type="button" role="tab" data-tab="audit" aria-selected="false"></button>
+      <button type="button" role="tab" data-tab="rules" aria-selected="false"></button>
+    </nav>
+    <main>
+      <div id="boot" class="empty"></div>
+
+      <section id="tab-review" hidden>
+        <div class="notice" id="advisory"></div>
+        <div class="grid split">
+          <div>
+            <div class="card">
+              <h2 data-i18n="review.input"></h2>
+              <div class="field">
+                <label for="sql" data-i18n="review.sql"></label>
+                <textarea id="sql" rows="10" spellcheck="false" placeholder="DELETE FROM orders;"></textarea>
+              </div>
+              <div class="row">
+                <div class="field">
+                  <label for="database" data-i18n="review.database"></label>
+                  <input id="database" type="text" list="dbOptions" autocomplete="off" />
+                  <datalist id="dbOptions"></datalist>
+                  <div class="hint" data-i18n="review.databaseHint"></div>
+                </div>
+                <div class="field">
+                  <label for="operator" data-i18n="review.operator"></label>
+                  <input id="operator" type="text" autocomplete="off" />
+                  <div class="hint" data-i18n="review.operatorHint"></div>
+                  <div class="hint" id="operatorStatus"></div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="field">
+                  <label for="estimatedRows" data-i18n="review.estimatedRows"></label>
+                  <input id="estimatedRows" type="number" min="0" step="1" placeholder="—" />
+                  <div class="hint" data-i18n="review.estimatedRowsHint"></div>
+                </div>
+              </div>
+              <div class="actions">
+                <button class="act primary" id="analyze" type="button" data-i18n="review.analyze"></button>
+                <button class="act" id="submit" type="button" data-i18n="review.submit"></button>
+                <button class="act" id="clear" type="button" data-i18n="review.clear"></button>
+              </div>
+            </div>
+            <div class="card" id="recordCard" hidden>
+              <h2 data-i18n="review.record"></h2>
+              <dl class="kv" id="recordKv"></dl>
+              <div class="actions">
+                <button class="act good" id="approve" type="button" data-i18n="review.approve"></button>
+                <button class="act danger" id="reject" type="button" data-i18n="review.reject"></button>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="card">
+              <h2 data-i18n="review.report"></h2>
+              <div id="reportBody"><div class="empty" data-i18n="review.noReport"></div></div>
+            </div>
+            <div class="card" id="hostCard" hidden>
+              <h2 data-i18n="host.title"></h2>
+              <div class="hint" data-i18n="host.notice"></div>
+              <div class="grid">
+                <label data-i18n="host.connectionId"></label>
+                <input id="hostConnection" type="text" spellcheck="false" />
+                <label data-i18n="host.table"></label>
+                <input id="hostTable" type="text" spellcheck="false" />
+                <label data-i18n="host.dialect"></label>
+                <span id="planDialect">—</span>
+                <label data-i18n="host.planSupport"></label>
+                <span id="planSupport">—</span>
+              </div>
+              <div class="actions">
+                <button class="act" id="hostPlan" type="button" data-i18n="host.readPlan"></button>
+                <!-- 三颗宿主诊断按钮读原始 context / 计划能力 / 表结构。它们是给开发期
+                     回答「宿主此刻告诉我什么」的，审批用不上，留在界面上只会让人以为
+                     点一下能多一个结论，所以默认不显示。
+                     实现整块都还在（handler、可用性、文案都没删），把脚本里的
+                     SHOW_HOST_DIAGNOSTICS 改成 true 就全部回来——节点留在 DOM 里，
+                     靠 hidden 收起，所以那些 `$("hostProbe").disabled = …` 的赋值
+                     不需要加判空，也就不会有一天悄悄抛异常。 -->
+                <span id="hostDiagnostics">
+                  <button class="act" id="hostProbe" type="button" data-i18n="host.probe"></button>
+                  <button class="act" id="hostPlanCaps" type="button" data-i18n="host.planCaps"></button>
+                  <button class="act" id="hostSchema" type="button" data-i18n="host.schema"></button>
+                </span>
+              </div>
+              <div class="hint" id="hostAvail"></div>
+              <div class="hint" id="planProbeLabel" hidden></div>
+              <pre id="planProbeSql" hidden></pre>
+              <div class="hint" id="hostStatus"></div>
+              <pre id="hostBody"></pre>
+            </div>
+            <div class="card" id="aiCard" hidden>
+              <h2 data-i18n="ai.title"></h2>
+              <div class="hint" data-i18n="ai.notice"></div>
+              <div class="actions">
+                <button class="act primary" id="aiReview" type="button" data-i18n="ai.review"></button>
+                <button class="act" id="aiChat" type="button" data-i18n="ai.chat"></button>
+              </div>
+              <div class="hint" id="aiStatus"></div>
+              <div id="aiBody"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-audit" hidden>
+        <div class="chips" id="stats"></div>
+        <div class="card">
+          <div class="row">
+            <div class="field">
+              <label for="fRisk" data-i18n="audit.risk"></label>
+              <select id="fRisk"></select>
+            </div>
+            <div class="field">
+              <label for="fStatus" data-i18n="audit.status"></label>
+              <select id="fStatus"></select>
+            </div>
+            <div class="field">
+              <label for="fDatabase" data-i18n="audit.database"></label>
+              <select id="fDatabase"></select>
+            </div>
+            <div class="field">
+              <label for="fOperator" data-i18n="audit.operator"></label>
+              <select id="fOperator"></select>
+            </div>
+            <div class="field">
+              <label for="fKeyword" data-i18n="audit.keyword"></label>
+              <input id="fKeyword" type="text" autocomplete="off" />
+            </div>
+            <div class="field">
+              <label for="fLimit" data-i18n="audit.limit"></label>
+              <select id="fLimit">
+                <option value="25">25</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+                <option value="250">250</option>
+              </select>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="act primary" id="refresh" type="button" data-i18n="audit.refresh"></button>
+            <button class="act" id="verify" type="button" data-i18n="audit.verify"></button>
+            <button class="act" id="export" type="button" data-i18n="audit.export"></button>
+          </div>
+        </div>
+        <div id="verifyBanner"></div>
+        <div class="card">
+          <h2 data-i18n="audit.list"></h2>
+          <div style="overflow-x: auto">
+            <table>
+              <thead>
+                <tr>
+                  <th data-i18n="audit.colTime"></th>
+                  <th data-i18n="audit.colRecord"></th>
+                  <th data-i18n="audit.colOperator"></th>
+                  <th data-i18n="audit.colDatabase"></th>
+                  <th data-i18n="audit.colRisk"></th>
+                  <th data-i18n="audit.colStatus"></th>
+                  <th data-i18n="audit.colSql"></th>
+                </tr>
+              </thead>
+              <tbody id="records"></tbody>
+            </table>
+          </div>
+          <div id="recordsEmpty" class="empty" hidden></div>
+          <div class="actions">
+            <button class="act" id="prev" type="button" data-i18n="audit.prev"></button>
+            <button class="act" id="next" type="button" data-i18n="audit.next"></button>
+            <span class="hint" id="pageInfo" style="align-self: center"></span>
+          </div>
+        </div>
+        <div class="card" id="detailCard" hidden>
+          <h2 data-i18n="audit.detail"></h2>
+          <dl class="kv" id="detailKv"></dl>
+          <div style="margin-top: 10px">
+            <label data-i18n="audit.storedSql"></label>
+            <pre id="detailSql"></pre>
+            <div class="hint" data-i18n="audit.redactedHint"></div>
+          </div>
+          <ul class="findings" id="detailFindings"></ul>
+          <div class="actions">
+            <button class="act good" id="detailApprove" type="button" data-i18n="review.approve"></button>
+            <button class="act danger" id="detailReject" type="button" data-i18n="review.reject"></button>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-rules" hidden>
+        <div class="notice" id="rulesNotice"></div>
+        <div class="card">
+          <h2 data-i18n="rules.detectors"></h2>
+          <div class="checks" id="detectors"></div>
+        </div>
+        <div class="card">
+          <h2 data-i18n="rules.policy"></h2>
+          <div class="row">
+            <div class="field">
+              <label for="approvalFromLevel" data-i18n="rules.approvalFrom"></label>
+              <select id="approvalFromLevel">
+                <option value="low">low</option>
+                <option value="medium">medium</option>
+                <option value="high">high</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="largeScanRowThreshold" data-i18n="rules.threshold"></label>
+              <input id="largeScanRowThreshold" type="number" min="1" max="1000000000" step="1000" />
+              <div class="hint" data-i18n="rules.thresholdHint"></div>
+            </div>
+          </div>
+          <div class="checks">
+            <label>
+              <input id="autoAllowReadOnly" type="checkbox" />
+              <span data-i18n="rules.autoAllowReadOnly"></span>
+            </label>
+            <label>
+              <input id="requireDistinctApprover" type="checkbox" />
+              <span data-i18n="rules.requireDistinctApprover"></span>
+            </label>
+          </div>
+          <div class="hint" data-i18n="rules.requireDistinctHint"></div>
+        </div>
+        <div class="card">
+          <h2 data-i18n="rules.approvers"></h2>
+          <div class="field">
+            <label for="approvers" data-i18n="rules.approverList"></label>
+            <textarea id="approvers" rows="4" spellcheck="false"></textarea>
+            <div class="hint" data-i18n="rules.approverListHint"></div>
+          </div>
+          <div class="field">
+            <label for="scopeApprovers" data-i18n="rules.scopeApprovers"></label>
+            <textarea id="scopeApprovers" rows="4" spellcheck="false" placeholder="prod = alice, bob"></textarea>
+            <div class="hint" data-i18n="rules.scopeApproversHint"></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2 data-i18n="rules.lists"></h2>
+          <div class="field">
+            <label for="sensitiveColumns" data-i18n="rules.sensitive"></label>
+            <textarea id="sensitiveColumns" rows="6" spellcheck="false"></textarea>
+            <div class="hint" data-i18n="rules.onePerLine"></div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="whitelistDatabases" data-i18n="rules.whitelistDatabases"></label>
+              <textarea id="whitelistDatabases" rows="4" spellcheck="false"></textarea>
+            </div>
+            <div class="field">
+              <label for="whitelistKeywords" data-i18n="rules.whitelistKeywords"></label>
+              <textarea id="whitelistKeywords" rows="4" spellcheck="false"></textarea>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="act primary" id="saveRules" type="button" data-i18n="rules.save"></button>
+            <button class="act" id="reloadRules" type="button" data-i18n="rules.reload"></button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast" role="status"></div>
+    <div id="overlay">
+      <div class="card" role="dialog" aria-modal="true">
+        <h2 id="modalTitle"></h2>
+        <div id="modalBody"></div>
+        <div class="actions" id="modalActions"></div>
+      </div>
+    </div>
+
+    <script>
+      "use strict";
+
+      const CODES = [
+        "incompleteStatement",
+        "malformedStatement",
+        // 全角标点同 malformedStatement 一档：发出去不会执行成功；不受开关控制、不拒绝落库，但必须让审查者看见。
+        "fullWidthPunctuation",
+        "destructiveDdl", "schemaChange", "privilegeChange", "noWhereDml", "constantWhere",
+        "conditionalWrite", "unboundedScan", "rowWrite", "sensitiveAccess", "multiStatement",
+        "largeAffectedRows", "whitelisted", "instanceControl", "bulkLoad", "opaqueCall",
+        // 这两条只在宿主元数据到位时出现；没有元数据时引擎永远不报。
+        "unknownColumn", "nullIntoNotNull"
+      ];
+      const DETECTORS = [
+        "detectDestructiveDdl", "detectSchemaChange", "detectNoWhereDml", "detectConstantWhere",
+        "detectUnboundedSelect", "detectSensitiveColumns", "detectMultiStatement", "detectAdminCommands"
+      ];
+      const RISKS = ["low", "medium", "high"];
+      const STATUSES = ["pending", "autoApproved", "approved", "rejected"];
+
+      const I18N = {
+        en: {
+          "nav.review": "Review", "nav.audit": "Audit trail", "nav.rules": "Rules",
+          "boot.noBridge": "window.dbxPlugin is unavailable. Open this page inside DBX.",
+          "boot.loading": "Connecting to the SQL Guard sidecar…",
+          "boot.failed": "The sidecar did not start. Check the DBX plugin log.",
+          "advisory": "Advisory only: DBX exposes no pre-execution hook, so this plugin cannot block a statement. Analyze first, then keep the approval trail.",
+          "review.input": "Statement under review",
+          "review.sql": "SQL", "review.database": "Database", "review.operator": "Operator",
+          "review.operatorHint": "Self-declared, not authenticated: the chain proves records were not edited, not who typed them. Left blank, the sidecar falls back to the OS user.",
+          "review.operatorSaved": "Saved on this DBX install.",
+          "review.databaseHint": "A scope label, not a live connection: the host does not share its connections with plugins. Names you submit are remembered on this DBX install for completion.",
+          "review.operatorNoStore": "Host storage is unavailable, so this name is only remembered until the workbench closes.",
+          "review.estimatedRows": "Estimated rows",
+          "review.estimatedRowsHint": "Two possible sources, and the report below says which one fired. \"Read estimated plan rows\" fills this box with the count the host read out of an estimated plan (`host.plans:read`, read-only statements only — DBX's plan gate refuses DDL and DML for every dialect but Oracle). Anything else you type here is a self-declared number: it is stored as unverified, and a 0 here means \"this detector has nothing to work with\", never \"this statement is safe\".",
+          "review.rowsFromPlan": "Row count in this report: {rows}, read from the host's estimated plan for this connection ({dbType}). The database's own optimizer produced it; the plugin executed nothing.",
+          "review.rowsFromRewrite": "Row count in this report: {rows}, read from the host's estimated plan ({dbType}) of a read-only statement SQL Guard derived from the one under review — planned text: {sql}. The number is the database's, the sentence is the plugin's, and the plugin executed nothing.",
+          "review.rowsSelf": "Row count in this report: {rows}, declared here by whoever submitted it and checked against nothing. Treat it as a claim, not a measurement.",
+          "review.rowsUnsupported": "No row count. The host says this connection's dialect ({dbType}) has no estimated plan, so the large-scan detector only ever sees a number typed into that box.",
+          "review.rowsNone": "No row count, so the large-scan detector had nothing to work with and stayed silent. \"Read estimated plan rows\" can fill it for a single read-only statement.",
+          "review.analyze": "Analyze", "review.submit": "Send to audit trail",
+          "review.clear": "Clear", "review.report": "Risk report", "review.noReport": "No analysis yet.",
+          "review.record": "Audit record", "review.approve": "Approve", "review.reject": "Reject",
+          "review.level": "Risk level", "review.verdict": "Approval", "review.needs": "Approval required",
+          "review.auto": "Auto-approved by policy", "review.whitelisted": "Whitelisted",
+          "review.statements": "Statements", "review.hash": "SQL hash", "review.findings": "Findings",
+          "review.factsUsed": "Host metadata used: {columns} column(s) of {table}. The unknown-column, NOT NULL and SELECT * checks are grounded in what the host reports, not guessed.",
+          "review.factsNoConnection": "No host metadata for this run: this workbench has no connectionId, so every check below is purely static.",
+          "review.factsNoTable": "No host metadata for this run: no table name to read, so every check below is purely static.",
+          "review.factsUnavailable": "No host metadata for this run: this host does not expose getTableMetadata, so every check below is purely static.",
+          "review.factsFailed": "No host metadata for this run: the host refused ({message}), so every check below is purely static.",
+          "review.factsEmpty": "No host metadata for this run: the host returned no columns, so every check below is purely static.",
+          "review.clean": "No finding. The engine saw nothing worth an approval trail.",
+          "review.needSql": "Enter some SQL first.",
+          "review.noStatements": "Nothing to analyze: the input contains only comments and whitespace.",
+          "review.seed": "Template from the table you right-clicked. It is commented out on purpose - remove the leading -- before anything here gets analyzed.",
+          "review.submitted": "Recorded as {id} ({status}).",
+          "ai.title": "AI pre-review",
+          "ai.notice": "Advisory only, and it cannot approve anything — approval stays a separate human action. The prompt is built from the redacted SQL: string literals and comments never reach the model. Numbers are kept, because without them nobody can tell how much the statement touches. The host asks you to confirm every generation.",
+          "ai.review": "Generate opinion", "ai.chat": "Continue in AI chat",
+          "ai.needReport": "Analyze the SQL first.",
+          "ai.noGenerate": "This host exposes no ai.generateText. Use 'Continue in AI chat' instead.",
+          "ai.noChat": "This host exposes no ai.openConversation.",
+          "ai.noModel": "No usable model came back from the host — what it actually returned is shown below. Try 'Continue in AI chat'.",
+          "ai.discoveryFailed": "Model discovery threw: {message}",
+          "ai.working": "Generating… the host will ask you to confirm.",
+          "ai.empty": "The model returned no text.",
+          "ai.failed": "AI generation failed: {message}",
+          "ai.chatOpened": "Sent the report to the DBX AI panel.",
+          "ai.chatOpenedNoSend": "Opened the conversation, but the host refused to send the prompt for you ({message}) — press send in the chat panel yourself.",
+          "ai.chatFailed": "Could not open the AI conversation: {message}",
+          "ai.chatIntro": "Can you review this SQL change with me?",
+          "ai.chatVerdict": "Deterministic engine verdict: risk={risk}, requiresApproval={approval}, whitelisted={whitelist}, statementCount={count}.",
+          "ai.chatFindings": "Engine findings:",
+          "ai.chatSql": "SQL (string literals are placeholders; identifiers and numbers are kept):",
+          "ai.chatGuard": "Advise only: you cannot approve or reject this, so never state a decision. Do not invent row counts, table sizes or schema facts you were not given.",
+          "ai.chatHostNote": "DBX, not this plugin, decides whether that prompt actually runs: it sends only if a model is selected in the AI panel's model menu. If DBX says \"AI is not configured\" or \"For plugin analysis, select an HTTP model or Ollama\", pick a model there and resend — the pre-review you just saw can work while the panel has no model, because generateText resolves one by id. This plugin cannot see the outcome.",
+          "ai.truncated": "The SQL was cut to {chars} characters to fit the prompt limit, so the opinion only covers that part.",
+          "host.title": "What the host actually told us",
+          "host.notice": "Read-only probe of the connection-scoped host APIs. DBX keeps every credential; the plugin only ever sees an id, metadata and an estimated plan. These reads need a connectionId, and the host only passes one when this workbench is opened from a table's right-click menu — entering from the Plugin Center or the bottom dock yields {workbenchId, surface, restored} and no connection.",
+          "host.connectionId": "connectionId (the id, not the connection's display name)",
+          "host.table": "Table",
+          "host.probe": "Dump context + capabilities",
+          "host.planCaps": "getPlanCapabilities",
+          "host.schema": "getTableMetadata",
+          "host.noConnection": "No connectionId. Open this workbench from a table's right-click menu (or fill the id in) — the host only scopes these reads to a connection that is already open.",
+          "host.needsConnection": "Disabled for now: the context the host gave this workbench carries a workbenchId and a surface, but no connectionId, so there is nothing for these reads to scope to. Open SQL Guard from a table's right-click menu in the sidebar, or paste the connection's id above — its display name is refused with \"Connection config not found\". Either way that is an entry-point fact, not a plugin failure.",
+          "host.needsTable": "getPlanCapabilities can run; getTableMetadata still needs a table name.",
+          "host.planApiOff": "The host reports capabilities.planApi = false, so both plan buttons stay off: there is no plan API to call on this host build. Nothing is wrong with the connection or with your SQL.",
+          "host.noTable": "A table name is required for getTableMetadata.",
+          "host.done": "Host read finished: {method}",
+          "host.failed": "{method} failed: {message}",
+          "host.unavailable": "This host does not expose {method} (permission or capability missing).",
+          "host.dialect": "Dialect (as the host reports it)",
+          "host.planSupport": "Estimated plan",
+          "host.readPlan": "Read estimated plan rows",
+          "host.planYes": "supported",
+          "host.planNo": "not supported",
+          "host.planNoCaps": "getPlanCapabilities gave nothing for this connection: {message}. Without it there is no way to know whether the dialect has an estimated plan at all, so no plan is read and the large-scan detector keeps using whatever you declare.",
+          "host.planUnsupported": "This host cannot produce an estimated plan for {dbType} connections. Row estimates stay a self-declared number — nothing was executed and nothing failed.",
+          "host.planNeedAnalyze": "Run Analyze first: the read-only check looks at the statement the engine already parsed, not at the raw text in the box.",
+          "host.planMulti": "The plan API takes exactly one statement; this script has {count}. Split it and review the pieces separately — a plan for part of a script is not an estimate for the script.",
+          "host.planProbe": "To get a row count the plugin asks the host to plan this read-only statement. SQL Guard wrote it, you did not — it is shown verbatim because a number nobody can trace is not evidence:",
+          "host.planProbeSelf": "This statement is already read-only, so the host plans exactly what you wrote:",
+          "host.probePredicate": "the rows this predicate matches are the rows the write would change",
+          "host.probeWholeTable": "the statement has no WHERE, so this counts the whole table — the same set the write touches",
+          "host.probeSource": "these are the rows feeding the INSERT",
+          "host.probeBasis": "Why this number equals your statement's: {reason}.",
+          "host.probeNothing": "No row count can be asked for this statement, and not because of the host: the engine could not derive a read-only statement that means the same thing. Why: {reason}",
+          "host.probe.limit": "it carries a row limit (LIMIT / OFFSET / FETCH): the write changes fewer rows than its predicate matches, so a SELECT would overstate the number.",
+          "host.probe.multiTable": "it reaches its target through more than one table, so no single-relation SELECT reproduces its row count.",
+          "host.probe.updateFrom": "its predicate names a table that only appears after SET, so a one-table probe would either fail outright or count the wrong join.",
+          "host.probe.cursor": "WHERE CURRENT OF selects a cursor position, not a set of rows.",
+          "host.probe.valuesOnly": "an INSERT…VALUES carries its own row count in the value list — there is nothing to ask an optimizer.",
+          "host.probe.conflict": "ON CONFLICT / ON DUPLICATE KEY turns part of the insert into updates, so the source count is not the affected count.",
+          "host.probe.fullWidthPunctuation": "full-width punctuation makes the statement boundary unreliable; a slice cut out of that text has no business being sent to your database.",
+          "host.probe.noTarget": "no target table could be read out of the statement.",
+          "host.probe.notRowEstimable": "this statement kind has no 'how many rows' question to answer.",
+          "host.probe.semicolonInText": "the derived text still contains a semicolon, so a host that splits statements on ';' would read two statements and refuse.",
+          "host.probe.tooLong": "the derived statement is longer than the host's plan limit.",
+          "host.probe.nothingToPlan": "there is no statement left to plan.",
+          "host.planRows": "Estimated plan rows: {rows}. The large-scan detector now uses the database's own number; it is in the report and in the record.",
+          "host.planRowsRewritten": "Estimated plan rows: {rows}. The number is the database's; the statement planned is the read-only one shown above, which SQL Guard derived — not the statement you are reviewing.",
+          "host.planNoRows": "The plan came back but carries no usable row count (not JSON, truncated, or the host attached a warning). Nothing was guessed — the number stays blank.",
+          "host.planFailed": "explainPlan failed: {message}",
+          "ai.statusNone": "Host AI: unavailable — the workbench bridge exposes no ai namespace.",
+          "ai.status": "Host AI: {methods} · capabilities: {caps}",
+          "audit.risk": "Risk", "audit.status": "Status", "audit.keyword": "Keyword in SQL",
+          "audit.database": "Database", "audit.operator": "Operator",
+          "audit.limit": "Page size", "audit.refresh": "Refresh", "audit.verify": "Verify chain",
+          "audit.export": "Export CSV", "audit.list": "Records", "audit.detail": "Record detail",
+          "audit.colTime": "Created (UTC)", "audit.colRecord": "Record", "audit.colOperator": "Operator",
+          "audit.colDatabase": "Database", "audit.colRisk": "Risk", "audit.colStatus": "Status",
+          "audit.colSql": "SQL", "audit.prev": "Newer", "audit.next": "Older",
+          "audit.empty": "No record matches these filters.",
+          "audit.page": "{from}–{to} of {total}",
+          "audit.storedSql": "Stored SQL",
+          "audit.redactedHint": "String literals and comments are replaced with ? before the record is written. Identifiers and numbers are kept.",
+          "audit.verifyOk": "Chain intact over {n} record(s). No content or decision digest mismatch.",
+          "audit.verifyBad": "Chain broken. First bad record: {id}. Decision mismatches: {n}.",
+          "audit.exportDone": "Exported {n} record(s).",
+          "audit.exportTruncated": " Only {n} of {total} matching records fit in one export; narrow the filter to get the rest.",
+          "audit.exportCopied": "No save dialog here — {n} record(s) copied to the clipboard instead.",
+          "audit.exportInline": "No download or clipboard API here — copy the CSV below.",
+          "rules.detectors": "Detectors", "rules.policy": "Approval policy", "rules.lists": "Rule lists",
+          "rules.approvalFrom": "Require approval from level", "rules.threshold": "Large-scan row threshold",
+          "rules.thresholdHint": "Only applies when a row estimate is supplied.",
+          "rules.autoAllowReadOnly": "Never require approval for read-only statements",
+          "rules.requireDistinctApprover": "Approver must not be the submitter",
+          "rules.requireDistinctHint": "On by default. Turn it off only if you are the sole user — it cannot stop two people from approving each other's records, because both names are self-declared.",
+          "rules.approvers": "Approvers",
+          "rules.approverList": "Who may approve",
+          "rules.approverListHint": "One name per line. Empty means anyone can approve. Matching ignores case and surrounding spaces.",
+          "rules.scopeApprovers": "Per-database approvers",
+          "rules.scopeApproversHint": "One line per database: `prod = alice, bob`. A database listed here uses ONLY its own names — leaving them empty locks that database for everyone. Databases not listed fall back to the list above.",
+          "rules.sensitive": "Sensitive columns", "rules.whitelistDatabases": "Whitelisted databases",
+          "rules.whitelistKeywords": "Whitelisted keywords", "rules.onePerLine": "One entry per line.",
+          "rules.save": "Save rules", "rules.reload": "Discard changes",
+          "rules.notice": "Turning a detector off removes findings from every later analysis. Records already stored keep their original findings.",
+          "rules.saved": "Rules saved.",
+          "modal.decideTitle": "{action} record {id}",
+          "modal.decideBrief": "What the chain already recorded for this statement. It froze when the record was written and is not recomputed now, so rules changed since then do not silently move this verdict.",
+          "modal.noFindingsOnRecord": "The engine flagged nothing on this text. That is not the same as it being safe — it is the range the detectors cover.",
+          "modal.approver": "Approver", "modal.note": "Note", "modal.confirm": "Confirm",
+          "modal.cancel": "Cancel", "modal.noteHint": "Stored verbatim in the audit trail and in the decision digest.",
+          "modal.decided": "Record {id} is now {status}.",
+          "modal.needApprover": "An approver name is required.",
+          "modal.selfApprovalHint": "This record was submitted by {operator}. With `requireDistinctApprover` on, the submitter cannot approve it: type someone else's name, or turn the option off in the Rules tab if you are the only person using this plugin. Rejecting your own record is always allowed.",
+          "modal.sqlRedacted": "Text stored in the audit trail. String literals and comments are replaced with `?`; identifiers and numbers are kept.",
+          "modal.sqlOriginal": "Original SQL, held in memory for this session only and never written to the audit database. Reopen the workbench and only the redacted text remains.",
+          "common.all": "All", "common.yes": "Yes", "common.no": "No", "common.none": "—",
+          "common.copy": "Copy", "common.copied": "Copied.",
+          "risk.low": "Low", "risk.medium": "Medium", "risk.high": "High",
+          "status.pending": "Pending", "status.autoApproved": "Auto-approved",
+          "status.approved": "Approved", "status.rejected": "Rejected",
+          "code.destructiveDdl": "Destructive DDL", "code.schemaChange": "Schema change",
+          "code.privilegeChange": "Privilege change", "code.noWhereDml": "DML without WHERE",
+          "code.constantWhere": "Always-true WHERE", "code.conditionalWrite": "Conditional write",
+        "code.malformedStatement": "Cannot be valid SQL",
+        "code.fullWidthPunctuation": "Full-width punctuation in syntax position",
+          "code.unboundedScan": "Unbounded scan", "code.rowWrite": "Row write",
+          "code.sensitiveAccess": "Sensitive column", "code.multiStatement": "Multi-statement script",
+          "code.largeAffectedRows": "Large row estimate", "code.whitelisted": "Whitelisted",
+          "code.instanceControl": "Instance-level command", "code.bulkLoad": "Bulk file load",
+          "code.opaqueCall": "Opaque stored code",
+          "code.incompleteStatement": "Truncated statement",
+          "code.unknownColumn": "Column the host does not have",
+          "code.nullIntoNotNull": "NULL into a NOT NULL column",
+          "detector.destructiveDdl": "Destructive DDL", "detector.schemaChange": "Schema change",
+          "detector.noWhereDml": "DML without WHERE", "detector.constantWhere": "Always-true WHERE",
+          "detector.unboundedSelect": "Unbounded scan", "detector.sensitiveColumns": "Sensitive columns",
+          "detector.multiStatement": "Multi-statement script",
+          "detector.adminCommands": "Instance, bulk-load and stored-code commands",
+          "stats.total": "Total", "stats.pending": "Pending", "stats.approved": "Approved",
+          "stats.rejected": "Rejected", "stats.highRisk": "High risk"
+        },
+        zh: {
+          "nav.review": "风险检查", "nav.audit": "审计留痕", "nav.rules": "规则配置",
+          "boot.noBridge": "未检测到 window.dbxPlugin，请在 DBX 内打开本页面。",
+          "boot.loading": "正在连接 SQL Guard sidecar…",
+          "boot.failed": "sidecar 未能启动，请查看 DBX 插件日志。",
+          "advisory": "仅为辅助判断：DBX 没有执行前钩子，本插件无法拦截语句。请先分析，再保留审批留痕。",
+          "review.input": "待检查语句",
+          "review.sql": "SQL", "review.database": "数据库", "review.operator": "操作人",
+          "review.operatorHint": "自报身份，未经认证：哈希链只能证明记录没被改过，证明不了是谁敲的。留空时 sidecar 退回操作系统用户名。",
+          "review.operatorSaved": "已保存到本机 DBX。",
+          "review.databaseHint": "这是作用域标签，不是真实连接：宿主不会把自己的连接共享给插件。提交过的库名会记在本机 DBX 上用于补全。",
+          "review.operatorNoStore": "宿主 storage 不可用，这个名字只在工作台关闭前有效。",
+          "review.estimatedRows": "预估行数",
+          "review.estimatedRowsHint": "这个数字有两个来源，下面报告会写明用的是哪一个。「读取估算计划行数」会把它从宿主的估算计划里读出来填进这里（`host.plans:read`，而且只支持只读语句——DBX 的计划门除 Oracle 外对所有方言都拒绝 DDL 和 DML）。自己敲进去的数字属于「本人声明」：它会以未经验证的形态存进记录，而且填 0 只意味着「『大范围扫描』检测器没有输入」，永远不等于「这条语句安全」。",
+          "review.rowsFromPlan": "本次报告采用的行数：{rows}，来自宿主对这条连接的估算计划（方言 {dbType}）。这个数字是数据库自己的优化器算出来的，插件没有执行任何东西。",
+          "review.rowsFromRewrite": "本次报告采用的行数：{rows}。它来自宿主对一条只读语句的估算计划（方言 {dbType}），而那条语句是 SQL Guard 从被审语句推导出来的——被计划的原文是：{sql}。数字是数据库给的，那句话是插件写的，插件没有执行任何东西。",
+          "review.rowsSelf": "本次报告采用的行数：{rows}，由提交者自己声明，没有对照任何东西。把它当一句声明，不要当一次测量。",
+          "review.rowsUnsupported": "没有行数。宿主说这条连接的方言（{dbType}）没有估算计划这条路，所以「大范围扫描」检测器只能看到框里有人自己填的数字。",
+          "review.rowsNone": "没有行数，「大范围扫描」检测器因此没有输入，保持沉默。单条只读语句可以点「读取估算计划行数」把它补上。",
+          "review.analyze": "分析", "review.submit": "写入审计留痕",
+          "review.clear": "清空", "review.report": "风险报告", "review.noReport": "尚未分析。",
+          "review.record": "审计记录", "review.approve": "批准", "review.reject": "驳回",
+          "review.level": "风险等级", "review.verdict": "审批结论", "review.needs": "需要审批",
+          "review.auto": "按策略自动通过", "review.whitelisted": "命中白名单",
+          "review.statements": "语句", "review.hash": "SQL 哈希", "review.findings": "命中项",
+          "review.factsUsed": "本次用了宿主元数据：{table} 的 {columns} 个列。下面关于「列不存在」「往 NOT NULL 写 NULL」「SELECT *」的判定，依据是宿主报回来的结构，不是猜的。",
+          "review.factsNoConnection": "本次没有宿主元数据：这个工作台没有 connectionId，所以下面全部判定都是纯静态的。",
+          "review.factsNoTable": "本次没有宿主元数据：没有表名可读，所以下面全部判定都是纯静态的。",
+          "review.factsUnavailable": "本次没有宿主元数据：这个宿主没有暴露 getTableMetadata，所以下面全部判定都是纯静态的。",
+          "review.factsFailed": "本次没有宿主元数据：宿主拒绝了这次读取（{message}），所以下面全部判定都是纯静态的。",
+          "review.factsEmpty": "本次没有宿主元数据：宿主没返回任何列，所以下面全部判定都是纯静态的。",
+          "review.clean": "无命中项，引擎认为不需要审批留痕。",
+          "review.needSql": "请先输入 SQL。",
+          "review.noStatements": "没有可分析的语句：输入里只有注释和空白。",
+          "review.seed": "这是你右键那张表的模板，故意留着注释——去掉行首的 -- 之后才会被分析。",
+          "review.submitted": "已记录为 {id}（{status}）。",
+          "ai.title": "AI 预审",
+          "ai.notice": "仅供参考，它无权审批——审批始终是独立的人工操作。prompt 用的是脱敏后的 SQL：字符串字面量和注释不会送到模型。数字会保留，否则谁都判断不了这条语句到底动多少数据。宿主每次生成都会弹窗要你确认。",
+          "ai.review": "生成预审意见", "ai.chat": "在 AI 对话中继续",
+          "ai.needReport": "请先分析 SQL。",
+          "ai.noGenerate": "宿主没有提供 ai.generateText，改用「在 AI 对话中继续」。",
+          "ai.noChat": "宿主没有提供 ai.openConversation。",
+          "ai.noModel": "宿主没能给出可用的模型——它实际返回的内容显示在下方。改用「在 AI 对话中继续」。",
+          "ai.discoveryFailed": "模型发现调用抛错：{message}",
+          "ai.working": "生成中……宿主会弹窗要你确认。",
+          "ai.empty": "模型没有返回文本。",
+          "ai.failed": "AI 生成失败：{message}",
+          "ai.chatOpened": "已把这份报告交给 DBX AI 面板。",
+          "ai.chatOpenedNoSend": "对话已打开，但宿主拒绝替你发送 prompt（{message}）——请在对话面板里自己点发送。",
+          "ai.chatFailed": "打不开 AI 对话：{message}",
+          "ai.chatIntro": "帮我看看这段 SQL 改动的风险。",
+          "ai.chatVerdict": "确定性引擎的判定：risk={risk}，requiresApproval={approval}，whitelisted={whitelist}，语句数={count}。",
+          "ai.chatFindings": "引擎命中：",
+          "ai.chatSql": "SQL（字符串字面量已换成占位符；标识符和数字刻意保留，因为影响范围就写在数字里）：",
+          "ai.chatGuard": "只给建议：你既不能批准也不能驳回，所以不要给出或暗示任何结论。不要编造行数、表大小或没有给你的 schema 事实。",
+          "ai.chatHostNote": "那条 prompt 到底有没有真的发出去，是 DBX 决定的，不是这个插件：只有 AI 面板的模型菜单里选了模型，它才会发送。如果 DBX 提示「AI 尚未配置。请在 设置 > AI 中配置你的 AI 服务。」或「插件分析请在模型菜单中选择 HTTP 模型或 Ollama。」，请在面板里选模型后重发——你刚看到的预审意见能出来说明 generateText 按 id 解析到了模型，而对话面板可能一个模型都没选。插件看不到这个结果。",
+          "ai.truncated": "SQL 太长，已截到 {chars} 字符以符合 prompt 上限，意见只覆盖前半部分。",
+          "host.title": "宿主到底告诉了我们什么",
+          "host.notice": "对宿主「按连接的只读 API」做一次探测。凭据始终在 DBX 手里，插件能看到的只有连接 id、元数据和估算计划。要从表的右键菜单进入本工作台，宿主才会把 TableContext 传进来；从插件中心或底部面板进来，context 里只有 {workbenchId, surface, restored}，没有任何连接信息。",
+          "host.connectionId": "connectionId（是 id，不是连接显示名）",
+          "host.table": "表名",
+          "host.probe": "打印 context + capabilities",
+          "host.planCaps": "getPlanCapabilities",
+          "host.schema": "getTableMetadata",
+          "host.noConnection": "没有 connectionId。请从表的右键菜单打开这个工作台（或自己填一个）——宿主的这些只读接口只服务已经打开的连接。",
+          "host.needsConnection": "暂时是关着的：宿主给这个工作台的 context 里有 workbenchId 和 surface，却没有 connectionId，这次只读没法定位到某条连接。请从侧边栏里对一张表点右键、选 SQL Guard 进来，或者自己往上表格里粘连接的 id——粘显示名会被宿主顶回来，原话是「Connection config not found」。这是入口的问题，不是插件坏了。",
+          "host.needsTable": "getPlanCapabilities 可以调了；getTableMetadata 还缺一个表名。",
+          "host.planApiOff": "宿主上报 capabilities.planApi = false，所以两颗计划按钮都是灰的：这个宿主版本上没有计划 API 可调。不是连接的问题，也不是你 SQL 的问题。",
+          "host.noTable": "getTableMetadata 需要一个表名。",
+          "host.done": "宿主只读调用完成：{method}",
+          "host.failed": "{method} 失败：{message}",
+          "host.unavailable": "这个宿主没有暴露 {method}（缺权限或缺 capability）。",
+          "host.dialect": "方言（宿主自述）",
+          "host.planSupport": "估算计划",
+          "host.readPlan": "读取估算计划行数",
+          "host.planYes": "支持",
+          "host.planNo": "不支持",
+          "host.planNoCaps": "getPlanCapabilities 没给这条连接任何东西：{message}。没有它就无从知道这个方言到底有没有估算计划这条路，所以这次不读计划，大范围扫描仍然只用你自己声明的数字。",
+          "host.planUnsupported": "这个宿主拿不出 {dbType} 连接的估算计划。行数仍然是你自己声明的数字——没有执行任何东西，也没有出错。",
+          "host.planNeedAnalyze": "先点 Analyze：只读判定看的是引擎已经解析出来的语句，不是文本框里的原始字符。",
+          "host.planMulti": "计划接口一次只收一条语句，这段脚本有 {count} 条。请拆开分别审——一段脚本的一部分的计划，不是这段脚本的行数估计。",
+          "host.planProbe": "要拿行数，插件会请宿主给下面这条只读语句做计划。它是 SQL Guard 写的，不是你写的——所以必须原样显示：一个没人能追溯的数字，算不上证据。",
+          "host.planProbeSelf": "这条语句本来就是只读的，宿主计划的就是你写的这句：",
+          "host.probePredicate": "这条谓词匹配多少行，这次写入就改多少行",
+          "host.probeWholeTable": "这条语句没有 WHERE，所以数的是整张表——也正是这次写入会碰到的范围",
+          "host.probeSource": "这些就是喂给 INSERT 的那些行",
+          "host.probeBasis": "这个数字为什么等于你那条语句的影响行数：{reason}。",
+          "host.probeNothing": "这条语句要不到行数，而且不是宿主拦的：引擎拼不出一条语义等价的只读语句。原因：{reason}",
+          "host.probe.limit": "它带限行（LIMIT / OFFSET / FETCH）：写入改的行比谓词匹配的行少，用 SELECT 去数只会高估。",
+          "host.probe.multiTable": "它是通过多张表定位目标的，没有任何「单表 SELECT」能复现它的行数。",
+          "host.probe.updateFrom": "它的谓词用到了只在 SET 之后才出现的表，只查一张表要么直接失败，要么数错连接结果。",
+          "host.probe.cursor": "WHERE CURRENT OF 选的是游标位置，不是一批行。",
+          "host.probe.valuesOnly": "INSERT…VALUES 的行数就写在值清单里，没什么要问优化器的。",
+          "host.probe.conflict": "ON CONFLICT / ON DUPLICATE KEY 会把一部分插入变成更新，来源行数不再等于影响行数。",
+          "host.probe.fullWidthPunctuation": "全角标点让语句边界不可信；从这种文本里切出来的一段，不该发给你的数据库。",
+          "host.probe.noTarget": "从这条语句里读不出目标表。",
+          "host.probe.notRowEstimable": "这种语句根本没有「影响多少行」这个问题。",
+          "host.probe.semicolonInText": "拼出来的文本里还有分号，按分号切语句的宿主会当成两条直接拒。",
+          "host.probe.tooLong": "拼出来的语句超过了宿主的计划长度上限。",
+          "host.probe.nothingToPlan": "已经没有语句可以拿去计划了。",
+          "host.planRows": "估算计划行数：{rows}。大范围扫描检测器现在用的是数据库自己的数字，报告里有，记录里也留着。",
+          "host.planRowsRewritten": "估算计划行数：{rows}。数字来自数据库，但被计划的那条语句是上面那条由 SQL Guard 推导出的只读语句，不是你正在审的这条。",
+          "host.planNoRows": "计划读回来了，但里面没有能用的行数（不是 JSON、被截断、或宿主带了 warning）。没有瞎猜——这个数字保持空白。",
+          "host.planFailed": "explainPlan 失败：{message}",
+          "ai.statusNone": "宿主 AI：不可用——工作台 bridge 没有 ai 命名空间。",
+          "ai.status": "宿主 AI：{methods} · capabilities：{caps}",
+          "audit.risk": "风险", "audit.status": "状态", "audit.keyword": "SQL 关键字",
+          "audit.database": "数据库", "audit.operator": "操作人",
+          "audit.limit": "每页条数", "audit.refresh": "刷新", "audit.verify": "校验哈希链",
+          "audit.export": "导出 CSV", "audit.list": "记录列表", "audit.detail": "记录详情",
+          "audit.colTime": "创建时间 (UTC)", "audit.colRecord": "记录号", "audit.colOperator": "操作人",
+          "audit.colDatabase": "数据库", "audit.colRisk": "风险", "audit.colStatus": "状态",
+          "audit.colSql": "SQL", "audit.prev": "更新", "audit.next": "更早",
+          "audit.empty": "没有符合筛选条件的记录。",
+          "audit.page": "第 {from}–{to} 条，共 {total} 条",
+          "audit.storedSql": "已存储的 SQL",
+          "audit.redactedHint": "写入记录前，字符串字面量与注释内容已被替换为 ?；标识符和数字原样保留。",
+          "audit.verifyOk": "哈希链完整，共校验 {n} 条记录，内容与决策摘要均无异常。",
+          "audit.verifyBad": "哈希链已损坏。首个异常记录：{id}；决策摘要不匹配 {n} 条。",
+          "audit.exportDone": "已导出 {n} 条记录。",
+          "audit.exportTruncated": " 符合条件的共 {total} 条，单次导出只装得下 {n} 条，请缩小筛选范围后再导出剩余部分。",
+          "audit.exportCopied": "当前环境没有保存对话框，已将 {n} 条记录复制到剪贴板。",
+          "audit.exportInline": "当前环境没有下载与剪贴板接口，请手动复制下方 CSV。",
+          "rules.detectors": "检测器", "rules.policy": "审批策略", "rules.lists": "规则清单",
+          "rules.approvalFrom": "达到该等级即需审批", "rules.threshold": "大扫描行数阈值",
+          "rules.thresholdHint": "仅在提供了预估行数时生效。",
+          "rules.autoAllowReadOnly": "只读语句永不要求审批",
+          "rules.requireDistinctApprover": "审批人不得与提交人相同",
+          "rules.requireDistinctHint": "默认开启。只有你一个人用这个插件时才需要关掉——它拦不住两个人互相批准，因为两个名字都是自报的。",
+          "rules.approvers": "审批人",
+          "rules.approverList": "谁可以审批",
+          "rules.approverListHint": "每行一个名字。留空表示任何人都能审批。匹配忽略大小写和首尾空格。",
+          "rules.scopeApprovers": "按数据库指定审批人",
+          "rules.scopeApproversHint": "每行一个库：`prod = alice, bob`。列在这里的库**只**认自己那份名单——名字留空就等于这个库谁都批不了。没列出来的库退回上面那份名单。",
+          "rules.sensitive": "敏感字段", "rules.whitelistDatabases": "白名单数据库",
+          "rules.whitelistKeywords": "白名单关键字", "rules.onePerLine": "每行一条。",
+          "rules.save": "保存规则", "rules.reload": "放弃修改",
+          "rules.notice": "关闭检测器会让之后的分析不再产生对应命中项；已入库的记录保留原有命中项。",
+          "rules.saved": "规则已保存。",
+          "modal.decideTitle": "{action}记录 {id}",
+          "modal.decideBrief": "这是落进链里的那份判定。它在写入的那一刻就冻结了，现在不会重算，所以之后改过的规则不会悄悄挪动这条结论。",
+          "modal.noFindingsOnRecord": "引擎在这段文本上没有命中任何一项。这不等于它安全——只是检测器覆盖到的那些问题里，它一条都没有。",
+          "modal.approver": "审批人", "modal.note": "备注", "modal.confirm": "确认",
+          "modal.cancel": "取消", "modal.noteHint": "备注会原样写入审计留痕，并参与决策摘要计算。",
+          "modal.decided": "记录 {id} 现在为{status}。",
+          "modal.needApprover": "必须填写审批人。",
+          "modal.selfApprovalHint": "这条记录的提交人是 {operator}。开启「审批人不得与提交人相同」时提交人不能批准它：请填别人的名字，或者如果你是一个人用这个插件，到「规则」页把该选项关掉。驳回自己的记录始终允许。",
+          "modal.sqlRedacted": "审计库里存的文本。字符串字面量和注释已替换为 `?`，标识符和数字原样保留。",
+          "modal.sqlOriginal": "原始 SQL，只保存在本次会话的内存里，不会写入审计库。重开工作台后只剩下脱敏文本。",
+          "common.all": "全部", "common.yes": "是", "common.no": "否", "common.none": "—",
+          "common.copy": "复制", "common.copied": "已复制。",
+          "risk.low": "低", "risk.medium": "中", "risk.high": "高",
+          "status.pending": "待审批", "status.autoApproved": "自动通过",
+          "status.approved": "已批准", "status.rejected": "已驳回",
+          "code.destructiveDdl": "破坏性 DDL", "code.schemaChange": "结构变更",
+          "code.privilegeChange": "权限变更", "code.noWhereDml": "DML 缺少 WHERE",
+          "code.constantWhere": "WHERE 恒真", "code.conditionalWrite": "条件写入",
+          "code.malformedStatement": "不可能是合法 SQL",
+          "code.fullWidthPunctuation": "混进了全角标点",
+          "code.unboundedScan": "无界扫描", "code.rowWrite": "行写入",
+          "code.sensitiveAccess": "敏感字段", "code.multiStatement": "多语句脚本",
+          "code.largeAffectedRows": "预估行数过大", "code.whitelisted": "命中白名单",
+          "code.instanceControl": "实例级命令", "code.bulkLoad": "批量文件导入",
+          "code.opaqueCall": "不可见的存储代码",
+          "code.incompleteStatement": "语句不完整",
+          "code.unknownColumn": "宿主没有这一列",
+          "code.nullIntoNotNull": "往 NOT NULL 列写 NULL",
+          "detector.destructiveDdl": "破坏性 DDL", "detector.schemaChange": "结构变更",
+          "detector.noWhereDml": "DML 缺少 WHERE", "detector.constantWhere": "WHERE 恒真",
+          "detector.unboundedSelect": "无界扫描", "detector.sensitiveColumns": "敏感字段",
+          "detector.multiStatement": "多语句脚本",
+          "detector.adminCommands": "实例级 / 批量导入 / 存储代码命令",
+          "stats.total": "总数", "stats.pending": "待审批", "stats.approved": "已批准",
+          "stats.rejected": "已驳回", "stats.highRisk": "高风险"
+        }
+      };
+
+      const bridge = window.dbxPlugin;
+      const state = {
+        locale: "en", dict: I18N.en, report: null, record: null, selected: null,
+        rules: null, offset: 0, total: 0, items: [], filter: {}, databases: [],
+        aiBusy: false,
+        // recordId -> 提交时的原始 SQL，**只活在本次会话内存里**：审计库永远存脱敏文本（否则审计库
+        // 就成了密码本），但审批人光看脱敏文本判断不了影响范围。关工作台即失——"不落库"的必然代价，界面上要如实说明。
+        originals: new Map(),
+        // 宿主 `getTableMetadata` 的结果只在内存、不落库：列清单是目标库的结构信息，记进留痕等于
+        // 把内部 schema 抄进另一个数据库。`tableFactsKey` 记它是哪条连接哪张表读的——换表必须重读，
+        // 拿 A 表列清单判 B 表只会造假阳性。
+        tableFacts: null,
+        tableFactsKey: null,
+        factsNote: null,
+        factsError: null,
+        // 宿主 plan API 的结果全部只在内存、不落库：它是目标库的结构与优化器信息，抄进留痕等于把内部 schema 复制到另一个数据库。`planCaps` 按 connectionId 缓存方言/版本/有无估算计划。
+        // `planRows`/`planRowsSql`/`planRowsConn` 是一个**三元组**：行数只有「这段文本+这条连接」
+        // 同时对上才成立；配错等于把一条语句的影响面算到另一条头上——而这个数字会变成一条审批要求。
+        planCaps: null,
+        planCapsKey: null,
+        planError: null,
+        planRows: null,
+        planRowsSql: null,
+        planRowsConn: null,
+        // 当前这份报告对应哪段 SQL 文本。见 doReadHostPlan 里的那道门。
+        reportSql: null,
+        // 已往 SQL 框写过哪张表的模板：同一 context 只写一次，用户清掉后宿主再推同样上下文不该把刚删的塞回去。
+        seedKey: null,
+        stats: { total: 0, pending: 0, approved: 0, rejected: 0, highRisk: 0 }
+      };
+
+      const $ = (id) => document.getElementById(id);
+
+      function t(key, vars) {
+        let text = state.dict[key] ?? I18N.en[key] ?? key;
+        for (const [name, value] of Object.entries(vars || {})) {
+          text = text.replaceAll(`{${name}}`, String(value));
+        }
+        return text;
+      }
+
+      function el(tag, className, text) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text;
+        return node;
+      }
+
+      let toastTimer = 0;
+      function toast(message, isError) {
+        const node = $("toast");
+        node.textContent = message;
+        node.classList.toggle("error", !!isError);
+        node.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => node.classList.remove("show"), isError ? 6000 : 2600);
+      }
+
+      async function rpc(method, params, timeoutMs) {
+        try {
+          return await bridge.invoke(method, params || {}, { timeoutMs: timeoutMs || 30000 });
+        } catch (error) {
+          // 调用方都吞掉 rejection 以保持 handler 简短，sidecar 的报错必须在这里浮出来，否则失败不可见。
+          toast(error?.message || String(error), true);
+          throw error;
+        }
+      }
+
+      function riskLabel(risk) { return t(`risk.${risk}`); }
+      function statusLabel(status) { return t(`status.${status}`); }
+      function codeLabel(code) {
+        const label = t(`code.${code}`);
+        return label === `code.${code}` ? code : label;
+      }
+
+      function badge(className, text) {
+        const node = el("span", `badge ${className}`, text);
+        return node;
+      }
+
+      function formatTime(ms) {
+        if (!ms) return t("common.none");
+        return new Date(ms).toISOString().replace("T", " ").slice(0, 19);
+      }
+
+      /* ---------- i18n painting ---------- */
+
+      function paintStatic() {
+        document.documentElement.lang = state.locale;
+        document.querySelectorAll("[data-i18n]").forEach((node) => {
+          node.textContent = t(node.dataset.i18n);
+        });
+        document.querySelectorAll("nav button[data-tab]").forEach((button) => {
+          button.textContent = t(`nav.${button.dataset.tab}`);
+        });
+        $("advisory").textContent = t("advisory");
+        $("rulesNotice").textContent = t("rules.notice");
+        paintFilters();
+        paintDetectors();
+        if (state.report) paintReport(state.report);
+        if (state.record) paintRecord(state.record);
+        paintStats(state.stats);
+        paintRows();
+      }
+
+      function options(select, values, allLabel) {
+        select.replaceChildren();
+        if (allLabel) {
+          const any = el("option", null, allLabel);
+          any.value = "";
+          select.append(any);
+        }
+        values.forEach((value) => {
+          const option = el("option", null, value);
+          option.value = value;
+          select.append(option);
+        });
+      }
+
+      function paintFilters() {
+        const risk = $("fRisk"), status = $("fStatus");
+        const keepRisk = risk.value, keepStatus = status.value;
+        options(risk, RISKS, t("common.all"));
+        options(status, STATUSES, t("common.all"));
+        risk.value = keepRisk || "";
+        status.value = keepStatus || "";
+        // 库/操作人候选来自异步的 guard/facets；先播种"全部"，否则分面失败时用户连"取消筛选"都选不了。
+        ["fDatabase", "fOperator"].forEach((id) => {
+          const select = $(id);
+          if (!select.options.length) options(select, [], t("common.all"));
+        });
+        const level = $("approvalFromLevel");
+        if (level) {
+          const keep = level.value;
+          options(level, RISKS);
+          level.value = keep || "high";
+        }
+      }
+
+      function paintDetectors() {
+        const host = $("detectors");
+        host.replaceChildren();
+        DETECTORS.forEach((key) => {
+          const label = el("label");
+          const input = document.createElement("input");
+          input.type = "checkbox";
+          input.id = key;
+          input.checked = state.rules ? state.rules[key] !== false : true;
+          label.append(input, el("span", null, t(detectorLabel(key))));
+          host.append(label);
+        });
+      }
+
+      function detectorLabel(key) {
+        return `detector.${key.charAt(6).toLowerCase()}${key.slice(7)}`;
+      }
+
+      /* ---------- review tab ---------- */
+
+      /// 宿主 context 按入口实测三种形态：插件中心 = `{}`，底部抽屉 = `{workbenchId, restored, surface:"dock"}`，
+      /// 表右键 = 额外 `{connectionId, database, schema, table}`。只有第三种填得上这输入框，前两种什么都不做。
+      function syncContextInputs() {
+        const context = state.context || {};
+        const database = context.database || context.databaseName || context.connection?.database;
+        if (database && !$("database").value) $("database").value = database;
+        seedSqlTemplate(context);
+      }
+
+      /// 从表右键进来时 SQL 框是空的，而宿主刚把「哪张表」说清楚。把它的准确名字写成一句 SELECT——**连注释
+      /// 符号一起给**：模板不是语句，引擎对它只能报「0 条语句」，去掉行首 -- 才是用户写的语句。只在框真空时写，同一 context 只写一次。
+      function seedSqlTemplate(context) {
+        const table = context.table;
+        if (!table) return;
+        if ($("sql").value.trim()) return;
+        const key = [context.connectionId || context.id || "", context.database || "",
+          context.schema || "", table].join("|");
+        if (state.seedKey === key) return;
+        state.seedKey = key;
+        const relation = context.schema ? `${context.schema}.${table}` : table;
+        const note = t("review.seed");
+        $("sql").value = `-- ${note}\n-- SELECT * FROM ${relation} LIMIT 100;`;
+      }
+
+      /// 分析前顺手读一次宿主元数据，只在已明确「哪张表」时（右键 context 或探测卡填了名）；读不到就照旧
+      /// 纯静态——报告如实写明，静态判定本来就该独立成立。
+      async function ensureTableFacts() {
+        const targets = hostProbeTargets();
+        state.factsError = null;
+        if (!targets.connectionId || !targets.table) {
+          state.tableFacts = null;
+          state.tableFactsKey = null;
+          state.factsNote = targets.connectionId ? "noTable" : "noConnection";
+          return;
+        }
+        const key = [targets.connectionId, targets.database, targets.schema, targets.table].join("|");
+        if (state.tableFacts && state.tableFactsKey === key) {
+          state.factsNote = "used";
+          return;
+        }
+        const call = bridgeMethod("getTableMetadata");
+        if (!call) {
+          state.tableFacts = null;
+          state.factsNote = "unavailable";
+          return;
+        }
+        try {
+          const value = await call(targets);
+          // 宿主只回 name/nullable：dataType 是各方言自己拼的字符串，引擎不懂方言，收下只会被误用。
+          const columns = ((value && value.columns) || [])
+            .filter((column) => column && typeof column.name === "string" && column.name)
+            .map((column) => ({
+              name: column.name,
+              nullable: typeof column.nullable === "boolean" ? column.nullable : undefined
+            }));
+          if (!columns.length) {
+            state.tableFacts = null;
+            state.factsNote = "empty";
+            return;
+          }
+          state.tableFacts = { table: targets.table, columns };
+          state.tableFactsKey = key;
+          state.factsNote = "used";
+        } catch (error) {
+          // 连接没打开、宿主拒绝、表不存在——都退回纯静态，而不是让分析整体失败。
+          state.tableFacts = null;
+          state.factsNote = "failed";
+          state.factsError = (error && error.message) || String(error);
+        }
+      }
+
+      function factsSummary() {
+        if (state.factsNote === "used" && state.tableFacts) {
+          return t("review.factsUsed", {
+            table: state.tableFacts.table,
+            columns: state.tableFacts.columns.length
+          });
+        }
+        if (state.factsNote === "failed") return t("review.factsFailed", { message: state.factsError || "" });
+        return t(`review.facts${state.factsNote ? state.factsNote[0].toUpperCase() + state.factsNote.slice(1) : "NoConnection"}`);
+      }
+
+      /* ---------- 宿主的估算计划 ---------- */
+
+      /// `getPlanCapabilities` 按 connectionId 缓存：读的是宿主持有的连接配置，插件自己不碰服务器，同一连接没必要反复问。
+      async function ensurePlanCapabilities() {
+        const targets = hostProbeTargets();
+        state.planError = null;
+        if (!targets.connectionId) {
+          state.planCaps = null;
+          state.planCapsKey = null;
+          paintPlanSupport();
+          return null;
+        }
+        if (state.planCaps && state.planCapsKey === targets.connectionId) {
+          paintPlanSupport();
+          return state.planCaps;
+        }
+        const call = bridgeMethod("getPlanCapabilities");
+        // planApi === false 是宿主明说这条路不通，再调只是拿一个必然的报错；别改成 `!caps.planApi`——
+        // 老宿主根本不带这个键，那种情况要照旧尝试，不能当成拒绝。
+        const declared = (window.dbxPlugin || {}).capabilities || {};
+        if (!call || declared.planApi === false) {
+          state.planCaps = null;
+          state.planCapsKey = null;
+          state.planError = call ? "planApi=false" : "unavailable";
+          paintPlanSupport();
+          return null;
+        }
+        try {
+          const value = await call(targets.connectionId) || {};
+          state.planCaps = {
+            dbType: typeof value.dbType === "string" ? value.dbType : "",
+            dbVersion: typeof value.dbVersion === "string" ? value.dbVersion : "",
+            supportsEstimatedPlan: Boolean(value.supports && value.supports.estimatedPlan),
+            maxTimeoutMs: Number.isFinite(value.limits && value.limits.maxTimeoutMs)
+              ? value.limits.maxTimeoutMs : 0
+          };
+          state.planCapsKey = targets.connectionId;
+        } catch (error) {
+          // 「Connection config not found」（不是个连接 id）和「Connection is not open」（id 对但没开）是两种处置，原话留着，不压成一句「读不到」。
+          state.planCaps = null;
+          state.planError = (error && error.message) || String(error);
+          state.planCapsKey = null;
+        }
+        paintPlanSupport();
+        return state.planCaps;
+      }
+
+      function paintPlanSupport() {
+        const caps = state.planCaps;
+        $("planDialect").textContent = caps
+          ? (caps.dbVersion ? `${caps.dbType} ${caps.dbVersion}` : caps.dbType || "—")
+          : "—";
+        $("planSupport").textContent = caps
+          ? t(caps.supportsEstimatedPlan ? "host.planYes" : "host.planNo")
+          : "—";
+      }
+
+      /// 只认 `format === "json"` 时根节点 `Plan` 上的 `Plan Rows`：文本计划长相逐方言不同，去正则它等于把
+      /// 方言知识写进刻意不懂方言的引擎；truncated / 带 warning 的计划一律不取——半棵树的行数不是这条语句的行数，而它会变成一条 High。
+      function planRowEstimate(value) {
+        if (!value || typeof value !== "object") return null;
+        if (value.truncated === true) return null;
+        if (Array.isArray(value.warnings) && value.warnings.length) return null;
+        if (value.format !== "json") return null;
+        const root = Array.isArray(value.rawPlan) ? value.rawPlan[0] : value.rawPlan;
+        const plan = root && root.Plan;
+        const rows = plan && plan["Plan Rows"];
+        return typeof rows === "number" && Number.isFinite(rows) && rows >= 0 ? rows : null;
+      }
+
+      /// 本地拒绝必须**看得见**：只写按钮下方的小灰字状态行的话，用户点完看到一片安静，会以为插件坏了而不是被拦了。
+      function refusePlan(message) {
+        $("hostStatus").textContent = message;
+        toast(message, true);
+      }
+
+      /// 引擎拒绝推导探针时给的是码不是句子（判定在 Rust，措辞在这里）；没有对应文案就原样印码——显示
+      /// `host.probe.foo` 只会让人翻代码，原样印 `foo` 至少知道是引擎自认判不了。
+      function probeRefusalText(code) {
+        const key = "host.probe." + (code || "nothingToPlan");
+        return (I18N.en[key] || state.dict[key]) ? t(key) : String(code || "nothingToPlan");
+      }
+
+      const PROBE_BASIS = {
+        self: "host.planProbeSelf",
+        predicate: "host.probePredicate",
+        wholeTable: "host.probeWholeTable",
+        source: "host.probeSource"
+      };
+
+      /// 把「要行数会发出去的那条只读语句」摆在按钮**上面**，Analyze 完就能看到，不用先点一次才知道。
+      /// 不能省：审批链上的数字若来自一条没人看过的改写，那条记录就在说谎——它把插件写的句子留成了用户语句的属性。
+      function paintProbe(report) {
+        const label = $("planProbeLabel");
+        const box = $("planProbeSql");
+        label.hidden = true;
+        box.hidden = true;
+        box.textContent = "";
+        const statements = (report && report.statements) || [];
+        // 多条语句本来就不会去做计划（计划接口一次只收一条），所以这里也不解释探针。
+        if (statements.length !== 1) return;
+        const probe = statements[0].planProbe;
+        if (!probe) {
+          label.hidden = false;
+          label.textContent = t("host.probeNothing", { reason: probeRefusalText(statements[0].planProbeRefused) });
+          return;
+        }
+        const reason = PROBE_BASIS[probe.basis];
+        label.hidden = false;
+        label.textContent = probe.basis === "self"
+          ? t("host.planProbeSelf")
+          : reason
+            ? `${t("host.planProbe")} ${t("host.probeBasis", { reason: t(reason) })}`
+            // 引擎给了一个这里不认识的 basis：句子可以不解释，语句本体必须显示。
+            : `${t("host.planProbe")} (${probe.basis})`;
+        box.hidden = false;
+        // 原样显示，一个字都不许改：这条文本要进报告和记录里的归因。
+        box.textContent = probe.sql;
+      }
+
+      /// 探针文本里有没有提到这张表？只比「最后一段名字」：`public.t_user`、`"t_user"`、`t_user` 算
+      /// 同一张，`x_t_user` 不算（词边界匹配，不做子串包含）。故意不解析 SQL——它只决定
+      /// 「要不要多传 database/schema」。误判代价对称且小：少传了，宿主用连接默认模式去找，找不到会说出来；多传的那种「不存在」是插件钉错范围钉出来的，却长得像用户写错。
+      function probeNamesContextTable(sql, table) {
+        if (!table || !sql) return false;
+        const bare = String(table).replace(/^"|"$/g, "").trim().toLowerCase();
+        if (!bare) return false;
+        const quoted = bare.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        return new RegExp(`(?:[^\\w$]|^)${quoted}(?:[^\\w$]|$)`, "i").test(sql);
+      }
+
+      /// 引擎从不自己调 `explainPlan`：只有这颗按钮会，且调之前先把门问清楚——这条连接支持
+      /// 不支持、SQL 框里是不是正好一条语句、引擎能不能从这条语句推出一条**语义等价**的只读语句。
+      /// 第三条是 0.3.0 改的。之前这里问「这条语句是不是只读的」，错得出「写语句永远拿不到行数」——
+      /// 那只挡住把 UPDATE 原样发过去：单表写的影响行数，定义上就是它的谓词在目标表上匹配的行数，
+      /// 而那条谓词 SELECT 是只读的。改写由引擎做（只有分词器知道顶层 `where` 在哪），UI 从不拼 SQL；宿主的计划门仍只收只读输入，最坏结果是一次被拒的调用，不是一次执行。
+      async function doReadHostPlan() {
+        const sql = $("sql").value.trim();
+        if (!sql) { toast(t("review.needSql"), true); return; }
+        const caps = await ensurePlanCapabilities();
+        if (!caps) {
+          refusePlan(t("host.planNoCaps", { message: state.planError || "" }));
+          return;
+        }
+        if (!caps.supportsEstimatedPlan) {
+          refusePlan(t("host.planUnsupported", { dbType: caps.dbType || "?" }));
+          return;
+        }
+        const statements = (state.report && state.report.statements) || [];
+        // 报告必须对着**当前这段文本**算出来，否则下面的 kind 判定读的是上一条语句的形状。
+        if (!statements.length || state.reportSql !== $("sql").value) {
+          refusePlan(t("host.planNeedAnalyze"));
+          return;
+        }
+        if (statements.length !== 1) {
+          refusePlan(t("host.planMulti", { count: statements.length }));
+          return;
+        }
+        const statement = statements[0];
+        const probe = statement.planProbe;
+        if (!probe) {
+          // 必须说清楚**是引擎没敢拼**，不是宿主不让——前者要用户把语句写清楚，后者无解，处置完全不同。
+          refusePlan(t("host.probeNothing", { reason: probeRefusalText(statement.planProbeRefused) }));
+          return;
+        }
+        const call = bridgeMethod("explainPlan");
+        if (!call) {
+          refusePlan(t("host.unavailable", { method: "explainPlan" }));
+          return;
+        }
+        const targets = hostProbeTargets();
+        // mode 只能是 "estimated"：EXPLAIN ANALYZE 会**执行**这条语句，那能力不在 host.plans:read 里，也不在这个插件的任何设计里。
+        const rewritten = probe.basis !== "self";
+        const request = {
+          connectionId: targets.connectionId,
+          // 发出去的是探针，不是文本框里的原文。写语句本身从未离开这个页面：插件没有执行 SQL 的能力，宿主那一侧的门也只收只读输入。
+          sql: probe.sql,
+          mode: "estimated",
+          timeoutMs: caps.maxTimeoutMs > 0 ? Math.min(15000, caps.maxTimeoutMs) : 15000
+        };
+        if (probeNamesContextTable(probe.sql, targets.table)) {
+          // 只有探针确实指向右键那张表时，context 的作用域才是它的作用域。
+          if (targets.database) request.database = targets.database;
+          if (targets.schema) request.schema = targets.schema;
+        }
+        clearPlanRows();
+        $("hostStatus").textContent = "explainPlan…";
+        try {
+          const value = await call(request);
+          $("hostBody").textContent = `explainPlan(${brief(probe.sql)}) ->\n${JSON.stringify(value, null, 2)}`;
+          const rows = planRowEstimate(value);
+          if (rows === null) {
+            refusePlan(t("host.planNoRows"));
+            return;
+          }
+          state.planRows = rows;
+          state.planRowsSql = sql;
+          state.planRowsConn = targets.connectionId;
+          // 数字来自探针还是原句，决定后面每一处归因怎么说（归因还要引用被计划的那条语句原文）；planRewritten / planProbeSql 必须和 planRows 同生同死：clear/retire 两个都要一起清。
+          state.planRewritten = rewritten;
+          state.planProbeSql = rewritten ? probe.sql : null;
+          $("estimatedRows").value = String(rows);
+          $("hostStatus").textContent = t(rewritten ? "host.planRowsRewritten" : "host.planRows", { rows });
+        } catch (error) {
+          const message = (error && error.message) || String(error);
+          state.planError = message;
+          $("hostStatus").textContent = t("host.planFailed", { message });
+          toast(t("host.planFailed", { message }), true);
+        }
+      }
+
+      /// 行数和它对应的那段文本必须成对消失：留着上次的数字等于把一条语句的计划挂到另一条头上——而这个数字会变成审批要求。
+      function clearPlanRows() {
+        state.planRows = null;
+        state.planRowsSql = null;
+        state.planRowsConn = null;
+        state.planRewritten = false;
+        state.planProbeSql = null;
+        $("estimatedRows").value = "";
+      }
+
+      /// SQL 或连接一改，框里那个「宿主给的数量」就属于上一条语句甚至上一条连接了：留着它，下一份报告要么把它错当成有人自己填的声明，要么挂到从没做过计划的语句上——两种都比没有数字更糟。
+      /// 所以定位条件不再是「这段文本+这条连接」时数字就地作废；但只有框里**还是**那个计划读数时
+      /// 才连文本一起清掉，有人自己填过的数字不该被顺手删除。
+      function retirePlanRows() {
+        if (state.planRows === null) return;
+        const targets = hostProbeTargets();
+        if (state.planRowsSql === $("sql").value.trim() && state.planRowsConn === targets.connectionId) return;
+        const typed = Number.parseInt($("estimatedRows").value, 10);
+        const rows = state.planRows;
+        state.planRows = null;
+        state.planRowsSql = null;
+        state.planRowsConn = null;
+        state.planRewritten = false;
+        state.planProbeSql = null;
+        if (!Number.isFinite(typed) || typed === rows) $("estimatedRows").value = "";
+      }
+
+      /// 「框里的数字此刻算谁的」只允许一处实现：reviewParams 用它定载荷，rowsSummary 用它定来源说明——分两份迟早有一份说谎。判定前先 retirePlanRows()：失效的读数连参与资格都没有。
+      function currentRows() {
+        retirePlanRows();
+        const typed = Number.parseInt($("estimatedRows").value, 10);
+        const boxRows = Number.isFinite(typed) && typed >= 0 ? typed : undefined;
+        return { planRows: state.planRows === null ? undefined : state.planRows, boxRows };
+      }
+
+      function rowsSummary() {
+        const { planRows, boxRows } = currentRows();
+        const caps = state.planCaps;
+        if (planRows !== undefined) {
+          const dbType = (caps && caps.dbType) || "?";
+          // 改写过的数字要说两条：谁算的，以及**被计划的是哪句话**——漏掉后者，审批人会以为计划的就是他正在批的这条语句。
+          if (state.planRewritten) {
+            return t("review.rowsFromRewrite", { rows: planRows, dbType, sql: state.planProbeSql || "?" });
+          }
+          return t("review.rowsFromPlan", { rows: planRows, dbType });
+        }
+        if (boxRows !== undefined) {
+          return t("review.rowsSelf", { rows: boxRows });
+        }
+        if (caps && !caps.supportsEstimatedPlan) {
+          return t("review.rowsUnsupported", { dbType: caps.dbType || "?" });
+        }
+        return t("review.rowsNone");
+      }
+
+      /// 框里的数字有两个来源，`reviewParams` 必须分清：
+      /// - 与当前 SQL 完全对应的计划读数（`planRowsSql === sql`）走 `planFacts`，引擎认它，报告写明「来自宿主的估算计划」；
+      /// - 其余是用户自己填的，走 `estimatedRows`，引擎照用，但报告里不冒充宿主的结论。
+      /// 这区分是必要的：用户手改过框里的数字后，影响面就不再是数据库算出来的，继续当宿主读数
+      /// 等于替手工数字背书——所以「框里还是不是那个数」也是判定条件；框清空则回到计划读数（删掉文本不该让已读到的事实消失，更不该让大扫描检测器闭嘴）。
+      function reviewParams() {
+        const caps = state.planCaps;
+        const { planRows, boxRows } = currentRows();
+        const effective = planRows !== undefined ? planRows : boxRows;
+        return {
+          sql: $("sql").value,
+          database: $("database").value.trim() || undefined,
+          operator: $("operator").value.trim() || undefined,
+          // 记录里存最终生效的数字，审批人不必再推断来源；来源本身在 finding 的消息里，那才是判定真正依据的东西。
+          estimatedRows: effective,
+          tableFacts: state.tableFacts || undefined,
+          dbType: caps && caps.dbType ? caps.dbType : undefined,
+          planFacts: caps
+            ? {
+              dbType: caps.dbType || undefined,
+              dbVersion: caps.dbVersion || undefined,
+              supportsEstimatedPlan: caps.supportsEstimatedPlan,
+              estimatedRows: planRows,
+              // 只有这个数字**确实**来自探针时才标记：归因是消息里的一句话，写错比不写更糟——它会让审批人怀疑其他每一句归因。
+              rewritten: state.planRewritten === true && planRows !== undefined
+            }
+            : undefined
+        };
+      }
+
+      async function doAnalyze() {
+        if (!$("sql").value.trim()) { toast(t("review.needSql"), true); return; }
+        await ensureTableFacts();
+        // 顺手取回方言信息（按 connectionId 缓存）：不改变任何判定，只是让报告和记录能写出「这条语句是对着 postgres 审的」，而不是把方言留成空字段。
+        await ensurePlanCapabilities();
+        const report = await rpc("guard/analyze", reviewParams());
+        state.report = report;
+        // 记下这份报告对着哪段文本算的：探针从报告里的语句推出，两者对不上时读回的行数属于一条没被审过的语句。
+        state.reportSql = $("sql").value;
+        paintReport(report);
+        paintProbe(report);
+      }
+
+      function paintReport(report) {
+        const host = $("reportBody");
+        host.replaceChildren();
+        // 「只有注释和空白」若照常有徽章加「自动通过」，读起来像查过了而且没问题，其实一条语句都没进引擎。
+        // 右键模板正是这形状（它故意是注释），所以要在徽章之前把话说明白，并且不给那段文本任何结论。
+        if (!report.statementCount) {
+          host.append(el("div", "empty", t("review.noStatements")));
+          $("aiCard").hidden = true;
+          $("aiBody").replaceChildren();
+          return;
+        }
+        const head = el("div", "actions");
+        head.style.marginTop = "0";
+        head.append(badge(`risk-${report.riskLevel}`, riskLabel(report.riskLevel)));
+        head.append(badge(report.requiresApproval ? "st-pending" : "st-approved",
+          report.requiresApproval ? t("review.needs") : t("review.auto")));
+        if (report.whitelisted) head.append(badge("st-approved", t("review.whitelisted")));
+        host.append(head);
+
+        const meta = el("dl", "kv");
+        meta.append(el("dt", null, t("review.statements")), el("dd", null, String(report.statementCount)));
+        meta.append(el("dt", null, t("review.hash")), el("dd", null, report.sqlHash));
+        host.append(meta);
+
+        // 判定有没有用宿主元数据必须写进报告：同一段 SQL 读到列清单会多几条命中，不说明就像结果会变戏法。
+        const facts = el("div", "hint", factsSummary());
+        facts.id = "factsNote";
+        host.append(facts);
+        // 行数来源单独一行，理由同上但更尖锐：「估计 50 万行」的分量，完全取决于它是优化器算的还是有人在框里敲的。
+        const rows = el("div", "hint", rowsSummary());
+        rows.id = "rowsNote";
+        host.append(rows);
+
+        host.append(el("h2", null, t("review.findings")));
+        if (!report.findings.length) {
+          host.append(el("div", "empty", t("review.clean")));
+        } else {
+          const list = el("ul", "findings");
+          report.findings.forEach((finding) => {
+            const item = el("li");
+            item.append(badge(`risk-${finding.risk}`, riskLabel(finding.risk)));
+            const body = el("div", "msg");
+            body.append(el("div", null, finding.message));
+            const tail = [codeLabel(finding.code), finding.statement].filter(Boolean).join(" · ");
+            body.append(el("div", "code", tail));
+            item.append(body);
+            list.append(item);
+          });
+          host.append(list);
+        }
+
+        if (report.statements.length) {
+          host.append(el("h2", null, t("review.statements")));
+          const table = el("table");
+          const thead = el("thead");
+          const headRow = el("tr");
+          ["#", "kind", "target", "risk"].forEach((name) => headRow.append(el("th", null, name)));
+          thead.append(headRow);
+          const tbody = el("tbody");
+          report.statements.forEach((statement) => {
+            const row = el("tr");
+            row.append(el("td", "mono", String(statement.index + 1)));
+            row.append(el("td", "mono", statement.kind));
+            row.append(el("td", "mono", statement.target || t("common.none")));
+            const riskCell = el("td");
+            riskCell.append(badge(`risk-${statement.risk}`, riskLabel(statement.risk)));
+            row.append(riskCell);
+            tbody.append(row);
+          });
+          table.append(thead, tbody);
+          host.append(table);
+        }
+
+        // 有报告了才露出 AI 卡片：预审意见围绕具体报告展开，没报告时那两个按钮只会点了报错。
+        revealAi();
+      }
+
+      async function doSubmit() {
+        if (!$("sql").value.trim()) { toast(t("review.needSql"), true); return; }
+        await saveOperator();
+        await ensureTableFacts();
+        let result;
+        try {
+          result = await rpc("guard/submit", reviewParams());
+        } catch (error) {
+          // 审计链只能追加，sidecar 会在写库前拒掉半成品 SQL（`DELETE FROM` 这种）。光一句 toast
+          // 看不出问题在哪条语句上，补一次只读分析，让"语句不完整"直接显示在报告里。
+          await doAnalyze().catch(() => {});
+          throw error;
+        }
+        // submit 的 report 不带 redactedSql（只在 guard/analyze 里拼）；库里存的 record.sql 本就是脱敏文本，正好补给 AI 预审用。
+        state.report = { ...result.report, redactedSql: result.record.sql };
+        state.reportSql = $("sql").value;
+        state.record = result.record;
+        // 存**提交那一刻**的原文、按 recordId 绑定：之后 SQL 框被改动，审批弹窗也不会显示和这条记录无关的文本。
+        state.originals.set(result.record.recordId, $("sql").value);
+        // 只有真的写进审计了才记住这个库名：分析失败或参数被拒时不该污染补全列表。
+        rememberDatabase($("database").value);
+        paintReport(result.report);
+        paintRecord(result.record);
+        toast(t("review.submitted", { id: result.record.recordId, status: statusLabel(result.record.status) }));
+        await refreshAudit();
+      }
+
+      function paintRecord(record) {
+        $("recordCard").hidden = false;
+        const kv = $("recordKv");
+        kv.replaceChildren();
+        const push = (name, value) => kv.append(el("dt", null, name), el("dd", null, value || t("common.none")));
+        push(t("audit.colRecord"), record.recordId);
+        const statusLine = el("dd");
+        statusLine.append(badge(`st-${record.status}`, statusLabel(record.status)),
+          document.createTextNode(" "), badge(`risk-${record.riskLevel}`, riskLabel(record.riskLevel)));
+        kv.append(el("dt", null, t("audit.colStatus")), statusLine);
+        push(t("audit.colOperator"), record.operator);
+        push(t("modal.approver"), record.approver);
+        push(t("modal.note"), record.note);
+        push(t("audit.colTime"), formatTime(record.createdAtMs));
+        push(t("review.hash"), record.sqlHash);
+        push("digest", record.digest);
+        const pending = record.status === "pending";
+        $("approve").disabled = !pending;
+        $("reject").disabled = !pending;
+      }
+
+      /* ---------- AI 预审（bridge.ai；只出意见，不参与审批） ----------
+
+         签名来自上游 plugins/README.md：
+           ai.generateText({ configId, model, prompt })     需要 host.ai + capabilities.aiCompletion
+           ai.listModels()                                  需要 host.ai + capabilities.aiCompletion
+           ai.listProviders() / ai.discoverModels(configId)  需要 host.ai + capabilities.aiModelDiscovery
+           ai.openConversation({ title, prompt, context, send?, mode? })   只需要 host.ai
+         同一份文档给的硬限制：generateText 每次调用都要宿主弹窗确认、单个工作台同时
+         只允许一个生成、prompt 上限 100000 字符、输出截到 16000 字符；
+         openConversation 的 title 上限 200 字符、prompt 上限 32000、context 上限 2 MiB。
+
+         门禁取舍：0.6.38 的真机已确认 bridge.ai 的九个方法全在、五个 ai* capability
+         全为 true，但**声明支持**不等于**配好了模型提供商**，而且 listModels /
+         listProviders / discoverModels / generateText 的返回字段名上游没有文档（只说
+         "返回配置 ID、名称和默认标记"）。所以门禁看的是"要调的方法在不在"——这才是
+         真正决定成败的一步——capability 键原样打印在状态行里当诊断用，解析不出模型时
+         再把宿主的真实返回摊在卡片里。 */
+
+      // openConversation 上限 32000 比 generateText 的 100000 紧，两条路径共用一个预算才不会"能生成、开不了对话"。
+      const AI_PROMPT_CHARS = 24000;
+      const AI_TITLE_CHARS = 200;
+      // findings / statements 各自行数封顶：一段几千条语句的脚本不能靠列表把预算吃光。
+      const AI_MAX_LIST_LINES = 40;
+      // 挤到最后也要给 SQL 留这么多，否则模型没有可评的对象，只会开始编。
+      const AI_MIN_SQL_CHARS = 400;
+
+      function hostAi() {
+        const ai = bridge?.ai;
+        return ai && typeof ai === "object" ? ai : null;
+      }
+
+      function aiMethod(ai, name) {
+        return ai && typeof ai[name] === "function" ? ai[name].bind(ai) : null;
+      }
+
+      /// 沿原型链枚举方法名：bridge.ai 可能是类实例，此时 Object.keys 是空的。链尾判定刻意不用
+      /// `node !== Object.prototype`：那是身份比较，跨 realm（宿主注入对象与插件脚本可能不同 realm）
+      /// 一旦失效就会把 toString/hasOwnProperty 当成宿主方法列出来。改看"原型是否为 null"，与 realm 无关；ai 自身是 null 原型对象时仍照常收集。
+      function aiMethodNames(ai) {
+        const seen = new Set();
+        for (let node = ai; node; node = Object.getPrototypeOf(node)) {
+          if (node !== ai && Object.getPrototypeOf(node) === null) break;
+          for (const key of Object.getOwnPropertyNames(node)) {
+            if (key !== "constructor" && typeof ai[key] === "function") seen.add(key);
+          }
+        }
+        return [...seen].sort().join(", ") || "—";
+      }
+
+      function paintAiStatus() {
+        const ai = hostAi();
+        const status = $("aiStatus");
+        // 那串"宿主 AI：九个方法名 · capabilities=…"是开发期的清单，不是审批人需要的信息：
+        // 按钮灰不灰已经说明能不能用，不能用时下面那句实话才是有用的一条。清单留在
+        // SHOW_HOST_DIAGNOSTICS 打开时才打印，构造它的那段代码原样保留。
+        status.textContent = "";
+        if (!ai) {
+          status.textContent = t("ai.statusNone");
+        } else if (SHOW_HOST_DIAGNOSTICS) {
+          const caps = Object.entries(bridge.capabilities || {})
+            .filter(([key]) => /ai/i.test(key))
+            .map(([key, value]) => `${key}=${value}`)
+            .join(", ");
+          status.textContent = t("ai.status", { methods: aiMethodNames(ai), caps: caps || "—" });
+        }
+        const busy = !!state.aiBusy;
+        $("aiReview").disabled = busy || !aiMethod(ai, "generateText");
+        $("aiChat").disabled = busy || !aiMethod(ai, "openConversation");
+      }
+
+      function revealAi() {
+        $("aiCard").hidden = false;
+        paintAiStatus();
+      }
+
+      function setAiBusy(busy) {
+        state.aiBusy = busy;
+        paintAiStatus();
+      }
+
+      const MD_BLOCK = /^\s*(?:```|#{1,6}\s|>|[-*+]\s|\d+[.)]\s|(?:-{3,}|\*{3,}|_{3,})\s*$)/;
+      const MD_ITEM = /^\s*([-*+]|\d+[.)])\s+(.*)$/;
+
+      /// `*` 只有前一个字符是空白或标点时才算强调起点，否则 `SELECT *` 的星号会被当成斜体；
+      /// 下划线形式干脆不支持——`update_time` 与 `create_time` 同行时中间必被配对，而模型评 SQL
+      /// 时这种列名比真正的斜体常见得多。
+      function mdEmphasis(text, at) {
+        const prev = at > 0 ? text[at - 1] : " ";
+        if (!/[\s([{,;:!?>"'（「。，、：；！？]/.test(prev)) return null;
+        const bold = text[at + 1] === "*";
+        const mark = bold ? "**" : "*";
+        const start = at + mark.length;
+        if (!/\S/.test(text.charAt(start))) return null;
+        const close = text.indexOf(mark, start);
+        if (close < 0) return null;
+        const inner = text.slice(start, close);
+        if (!/\S$/.test(inner)) return null;
+        const node = el(bold ? "strong" : "em");
+        mdInline(inner, node);
+        return { next: close + mark.length, node };
+      }
+
+      /// 行内只认三种：反引号代码、`**加粗**`、`*斜体*`。文本节点全经 createTextNode/textContent
+      /// 落地，所以这里产不出任何「标记」。
+      function mdInline(text, parent) {
+        let plain = "";
+        const flush = () => {
+          if (!plain) return;
+          plain.split("\n").forEach((part, index) => {
+            if (index) parent.append(el("br"));
+            if (part) parent.append(document.createTextNode(part));
+          });
+          plain = "";
+        };
+        for (let i = 0; i < text.length;) {
+          const ch = text[i];
+          if (ch === "`") {
+            const close = text.indexOf("`", i + 1);
+            if (close > i) {
+              flush();
+              parent.append(el("code", null, text.slice(i + 1, close)));
+              i = close + 1;
+              continue;
+            }
+          }
+          if (ch === "*") {
+            const run = mdEmphasis(text, i);
+            if (run) {
+              flush();
+              parent.append(run.node);
+              i = run.next;
+              continue;
+            }
+          }
+          plain += ch;
+          i += 1;
+        }
+        flush();
+      }
+
+      /// 渲染模型预审意见所用的 Markdown 子集：标题、两种列表、围栏代码、行内码、加粗/斜体、
+      /// 引用、分隔线，其余按段落（段内单个换行保留，诊断原文就靠换行分行）；压成纯文本会丢掉
+      /// 列表层级、加粗结论和代码块。底线没有因为「要排版」就让步：每个节点都由 createElement +
+      /// textContent 建出来，整个函数没有一处 innerHTML——`#`、`*`、``` 只影响*排版*，成不了*标记*，
+      /// 返回里的 `<script>` 或 `javascript:` 只会是那串字符。链接不生成 `<a>`：工作台没有打开
+      /// 外链的能力，URL 原样印出来反而看得见模型往里塞了什么。
+      function renderMarkdown(text) {
+        const wrap = el("div", "ai-md");
+        const lines = String(text).replace(/\r\n?/g, "\n").split("\n");
+        let i = 0;
+        while (i < lines.length) {
+          const line = lines[i];
+          if (!line.trim()) { i += 1; continue; }
+          if (/^\s*```/.test(line)) {
+            const buf = [];
+            i += 1;
+            while (i < lines.length && !/^\s*```/.test(lines[i])) { buf.push(lines[i]); i += 1; }
+            i += 1;
+            wrap.append(el("pre", "md-code", buf.join("\n")));
+            continue;
+          }
+          if (/^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(line)) { wrap.append(el("hr", "md-rule")); i += 1; continue; }
+          const head = /^\s*#{1,6}\s+(.*)$/.exec(line);
+          if (head) {
+            const node = el("div", "md-h");
+            mdInline(head[1].trim(), node);
+            wrap.append(node);
+            i += 1;
+            continue;
+          }
+          const quote = /^\s*>\s?(.*)$/.exec(line);
+          if (quote) {
+            const buf = [quote[1]];
+            i += 1;
+            while (i < lines.length && /^\s*>/.test(lines[i])) {
+              buf.push(lines[i].replace(/^\s*>\s?/, ""));
+              i += 1;
+            }
+            const node = el("div", "md-quote");
+            mdInline(buf.join("\n"), node);
+            wrap.append(node);
+            continue;
+          }
+          if (MD_ITEM.test(line)) {
+            const ordered = /^\s*\d/.test(line);
+            const list = el(ordered ? "ol" : "ul");
+            while (i < lines.length) {
+              const item = ordered ? /^\s*\d+[.)]\s+(.*)$/.exec(lines[i])
+                : /^\s*[-*+]\s+(.*)$/.exec(lines[i]);
+              if (!item) break;
+              const li = el("li");
+              mdInline(item[1], li);
+              i += 1;
+              // 缩进的续行属于上一条目：模型爱把「理由」单独另起一行。
+              while (i < lines.length && /^\s{2,}\S/.test(lines[i]) && !MD_BLOCK.test(lines[i])) {
+                li.append(document.createTextNode(" "));
+                mdInline(lines[i].trim(), li);
+                i += 1;
+              }
+              list.append(li);
+            }
+            wrap.append(list);
+            continue;
+          }
+          const buf = [];
+          while (i < lines.length && lines[i].trim() && !MD_BLOCK.test(lines[i])) {
+            buf.push(lines[i]);
+            i += 1;
+          }
+          // 一种块都没认领的行（比如 `~~~`）也得前进一次，否则这里原地死循环。
+          if (!buf.length) { buf.push(lines[i]); i += 1; }
+          const p = el("p");
+          mdInline(buf.join("\n"), p);
+          wrap.append(p);
+        }
+        return wrap;
+      }
+
+      function renderAi(text) {
+        const body = $("aiBody");
+        body.replaceChildren();
+        if (text) body.append(renderMarkdown(text));
+      }
+
+      /* 返回值形状没有文档，常见的几种都认一下。认不出来就把 JSON 原样显示——
+         宁可难看，也不要让用户以为模型什么都没返回。 */
+      function extractText(result) {
+        if (typeof result === "string") return result;
+        if (!result || typeof result !== "object") return result == null ? "" : String(result);
+        for (const key of ["text", "content", "output", "outputText", "result", "message", "completion"]) {
+          const value = result[key];
+          if (typeof value === "string" && value.trim()) return value;
+        }
+        if (Array.isArray(result.choices) && result.choices.length) {
+          const choice = result.choices[0];
+          const value = typeof choice === "string" ? choice : choice?.text ?? choice?.message?.content;
+          if (typeof value === "string" && value.trim()) return value;
+        }
+        try {
+          return JSON.stringify(result, null, 2);
+        } catch {
+          return String(result);
+        }
+      }
+
+      /// 返回形状同样没有文档：可能是数组，也可能包在 items / models / providers 里。
+      function asList(value) {
+        if (Array.isArray(value)) return value;
+        if (value && typeof value === "object") {
+          for (const key of ["items", "models", "providers", "configs", "data", "results", "list"]) {
+            if (Array.isArray(value[key])) return value[key];
+          }
+          return [value];
+        }
+        return [];
+      }
+
+      function firstText(item, names) {
+        if (!item || typeof item !== "object") return null;
+        for (const name of names) {
+          const value = item[name];
+          if (typeof value === "string" && value.trim()) return value.trim();
+        }
+        return null;
+      }
+
+      const isDefault = (item) => !!item && typeof item === "object"
+        && (item.default === true || item.isDefault === true || item.defaultModel === true);
+
+      /// 把宿主的原始返回压成一行短文本，用于解析失败时的自诊断。
+      function brief(value) {
+        let text;
+        try {
+          text = JSON.stringify(value) ?? String(value);
+        } catch {
+          text = String(value);
+        }
+        return text.length > 300 ? `${text.slice(0, 300)}…` : text;
+      }
+
+      /// generateText 需要 configId + model：优先 listModels（少一次往返），拿不到退回 listProviders +
+      /// discoverModels。返回 `{ pick, seen }`：`pick` 为 null 时 `seen` 里是宿主每一步真实返回的原文。
+      /// 这不是调试残留——上游没文档化这几个方法的返回形状，"配了提供商但字段名对不上"和"根本没配
+      /// 提供商"从外面看是同一个结果，只有摊开原文才分得清，所以失败时显示给用户而不是只说"解析不出模型"。
+      async function resolveModel(ai) {
+        const seen = [];
+        const listModels = aiMethod(ai, "listModels");
+        if (listModels) {
+          const raw = await listModels();
+          seen.push(`listModels() -> ${brief(raw)}`);
+          const models = asList(raw);
+          const chosen = models.find(isDefault) || models[0];
+          const model = firstText(chosen, ["id", "model", "modelId", "name"]);
+          if (model) {
+            const pick = { configId: firstText(chosen, ["configId", "providerId", "provider", "config"]), model };
+            return { pick, seen };
+          }
+        } else {
+          seen.push("listModels: absent");
+        }
+        const listProviders = aiMethod(ai, "listProviders");
+        const discoverModels = aiMethod(ai, "discoverModels");
+        if (listProviders && discoverModels) {
+          const rawProviders = await listProviders();
+          seen.push(`listProviders() -> ${brief(rawProviders)}`);
+          for (const provider of asList(rawProviders)) {
+            const configId = firstText(provider, ["id", "configId", "providerId", "name"]);
+            if (!configId) continue;
+            const raw = await discoverModels(configId);
+            seen.push(`discoverModels(${configId}) -> ${brief(raw)}`);
+            const models = asList(raw);
+            const chosen = models.find(isDefault) || models[0];
+            const model = firstText(chosen, ["id", "model", "modelId", "name"]);
+            if (model) return { pick: { configId, model }, seen };
+          }
+        } else {
+          seen.push("listProviders/discoverModels: absent");
+        }
+        return { pick: null, seen };
+      }
+
+      /// 列表段落统一封顶，超出部分只报个数。
+      function aiLines(items, render) {
+        const shown = items.slice(0, AI_MAX_LIST_LINES).map(render);
+        if (items.length > AI_MAX_LIST_LINES) {
+          shown.push(`- ... ${items.length - AI_MAX_LIST_LINES} more not listed`);
+        }
+        return shown.join("\n") || "- (none)";
+      }
+
+      /// 预审意见（generateText）用的 prompt。SQL 用 sidecar 的脱敏文本（redactedSql），原始字面量
+      /// 绝不进 prompt：那等于把口令发给模型服务商。
+      function aiPrompt(report) {
+        const findings = aiLines(report.findings, (item) =>
+          `- [${item.risk}] ${item.code}${item.statement ? ` (${item.statement})` : ""}: ${item.message}`);
+        const statements = aiLines(report.statements, (item) =>
+          `- #${item.index + 1} ${item.kind}${item.target ? ` ${item.target}` : ""} -> ${item.risk}`);
+        const head = [
+          "You are pre-reviewing a SQL change for the human approver inside DBX.",
+          `Verdict from the deterministic engine: risk=${report.riskLevel},`,
+          `requiresApproval=${report.requiresApproval}, whitelisted=${report.whitelisted},`,
+          `statementCount=${report.statementCount}.`,
+          "",
+          "Engine findings:",
+          findings,
+          "",
+          "Statements:",
+          statements,
+          "",
+          "SQL (string literals replaced by placeholders; identifiers and numeric",
+          "literals are kept on purpose, because the numbers are the scope):",
+        ].join("\n");
+        // 指令刻意放在 SQL **之后**：预算不够时只截 SQL 那一段——截掉尾部等于把"不许自己下审批结论"
+        // 这条约束一起丢了，那比不给意见更糟。
+        const tail = [
+          "",
+          `Answer in ${state.locale}. Be concrete and brief. Cover exactly three things:`,
+          "1. why this is risky, in business terms an approver can act on;",
+          "2. what it could affect that a lexical engine cannot see;",
+          "3. a safer rewrite if one exists - otherwise say plainly that there is none.",
+          "The engine is lexical, not a parser. Do not invent row counts, table sizes or",
+          "schema facts you were not given. You are advising only: you cannot approve or",
+          "reject anything, so never state or imply a decision.",
+        ].join("\n");
+        const redacted = String(report.redactedSql || "");
+        const room = AI_PROMPT_CHARS - head.length - tail.length - 64;
+        const budget = Math.max(AI_MIN_SQL_CHARS, room);
+        const truncated = redacted.length > budget;
+        const sqlText = truncated ? `${redacted.slice(0, budget)}\n-- ... truncated` : redacted;
+        return { text: `${head}\n${sqlText}${tail}`, truncated };
+      }
+
+      /// 对话路径专用的短 prompt。generateText 要的预审意见能贴回工作台，指令写得长且硬；
+      /// openConversation 打开的是给人**接着聊**的会话，整段机器指令当第一条消息甩出来，用户得先
+      /// 读完才能问自己想问的。这里只留提问本身、引擎判定、脱敏 SQL，外加不能省的那句：模型只建议不审批。
+      function aiChatPrompt(report) {
+        const findings = aiLines(report.findings, (item) =>
+          `- [${item.risk}] ${item.code}${item.statement ? ` (${item.statement})` : ""}: ${item.message}`);
+        const head = [
+          t("ai.chatIntro"),
+          "",
+          t("ai.chatVerdict", {
+            risk: report.riskLevel,
+            approval: report.requiresApproval,
+            whitelist: report.whitelisted,
+            count: report.statementCount
+          }),
+          "",
+          t("ai.chatFindings"),
+          findings,
+          "",
+          t("ai.chatSql"),
+        ].join("\n");
+        const tail = `\n\n${t("ai.chatGuard")}`;
+        const redacted = String(report.redactedSql || "");
+        const room = AI_PROMPT_CHARS - head.length - tail.length - 64;
+        const budget = Math.max(AI_MIN_SQL_CHARS, room);
+        const truncated = redacted.length > budget;
+        const sqlText = truncated ? `${redacted.slice(0, budget)}\n-- ... truncated` : redacted;
+        return { text: `${head}${sqlText}${tail}`, truncated };
+      }
+
+      async function doAiReview() {
+        if (!state.report) { toast(t("ai.needReport"), true); return; }
+        const ai = hostAi();
+        const generate = aiMethod(ai, "generateText");
+        if (!generate) { toast(t("ai.noGenerate"), true); return; }
+        let pick = null;
+        let seen = [];
+        try {
+          ({ pick, seen } = await resolveModel(ai));
+        } catch (error) {
+          // 发现调用自己抛了（权限被拒、宿主没配 AI 后端），比"返回了空列表"更值得原样报出来，所以两条路径的提示不一样。
+          renderAi(t("ai.discoveryFailed", { message: error?.message || String(error) }));
+          toast(t("ai.noModel"), true);
+          return;
+        }
+        if (!pick?.model) {
+          // 把宿主每一步真实返回摊在卡片里：字段名对不上还是根本没配提供商，光一句"解析不出模型"分不出来。
+          renderAi(seen.join("\n"));
+          toast(t("ai.noModel"), true);
+          return;
+        }
+
+        const prompt = aiPrompt(state.report);
+        setAiBusy(true);
+        renderAi(t("ai.working"));
+        try {
+          const result = await generate({
+            configId: pick.configId,
+            model: pick.model,
+            prompt: prompt.text
+          });
+          renderAi(extractText(result).trim() || t("ai.empty"));
+          if (prompt.truncated) toast(t("ai.truncated", { chars: AI_PROMPT_CHARS }), true);
+        } catch (error) {
+          // 失败时清掉"生成中"那行，否则界面上会一直挂着一句假的进度提示。
+          renderAi("");
+          toast(t("ai.failed", { message: error?.message || String(error) }), true);
+        } finally {
+          setAiBusy(false);
+        }
+      }
+
+      async function doAiChat() {
+        if (!state.report) { toast(t("ai.needReport"), true); return; }
+        const open = aiMethod(hostAi(), "openConversation");
+        if (!open) { toast(t("ai.noChat"), true); return; }
+        const report = state.report;
+        const prompt = aiChatPrompt(report);
+        const request = {
+          title: `SQL Guard · ${report.riskLevel} · ${report.statementCount} stmt`.slice(0, AI_TITLE_CHARS),
+          prompt: prompt.text,
+          // 结构化的一半放在 context 里，方便在对话里追问某条具体命中项；刻意不含原始 SQL——prompt 里那份已经是脱敏的。
+          context: {
+            riskLevel: report.riskLevel,
+            requiresApproval: report.requiresApproval,
+            whitelisted: report.whitelisted,
+            statementCount: report.statementCount,
+            findings: report.findings,
+            // 刻意只挑四列，而不是把 `report.statements` 整个塞进去：摘要里带着 `planProbe.sql`，那是
+            // **没脱敏**的原文片段（谓词的字面量就在里面），而这个对象会随对话发给模型服务商——不能因为顺手多传一个字段就把那条规矩破掉。
+            statements: (report.statements || []).map((item) => ({
+              index: item.index,
+              kind: item.kind,
+              target: item.target,
+              risk: item.risk
+            })),
+            sqlHash: report.sqlHash
+          }
+        };
+        setAiBusy(true);
+        try {
+          try {
+            // send=true：直接把问题发出去，用户看到的是答案而不是一个空输入框。
+            await open({ ...request, send: true });
+          } catch (first) {
+            // send 是 openConversation 里唯一非默认的字段，也是宿主唯一会明确拒绝我们的分支——比如没声明
+            // host.ai、或宿主没有对话面板时直接抛 "conversation panel is unavailable"。退一步：只开对话、不自动发。
+            await open(request);
+            toast(t("ai.chatOpenedNoSend", { message: first?.message || String(first) }), true);
+            return;
+          }
+          // 这里的"成功"只意味着宿主收下了请求，**不意味着它真的发出了那条消息**：openConversation
+          // 无论有没有模型都会 resolve，模型没选时是 DBX 自己的助手面板弹它自己的提示。我们看不到结果，只能把这句老实话摊在卡片上。
+          toast(t("ai.chatOpened"));
+          renderAi(t("ai.chatHostNote"));
+        } catch (error) {
+          // 两次都失败。toast 会消失，而宿主原话加上实际发过去的参数形状，是唯一能分清"对话模型没配"和"参数不被接受"的线索——上次 generateText 那条路就是靠摊出原始返回才定位的。
+          const message = error?.message || String(error);
+          renderAi([
+            t("ai.chatFailed", { message }),
+            "",
+            `openConversation(${brief({
+              title: request.title,
+              prompt: `${request.prompt.length} chars`,
+              contextKeys: Object.keys(request.context),
+              send: "true on the first attempt, omitted on the retry"
+            })})`
+          ].join("\n"));
+          toast(t("ai.chatFailed", { message }), true);
+        } finally {
+          setAiBusy(false);
+        }
+      }
+
+      /* ---------- decision modal (plugin-owned, no native confirm) ---------- */
+
+      function openModal(title, buildBody, onConfirm) {
+        $("modalTitle").textContent = title;
+        const body = $("modalBody");
+        body.replaceChildren();
+        const fields = buildBody(body);
+        const actions = $("modalActions");
+        actions.replaceChildren();
+        const cancel = el("button", "act", t("modal.cancel"));
+        cancel.type = "button";
+        cancel.addEventListener("click", closeModal);
+        const confirm = el("button", "act primary", t("modal.confirm"));
+        confirm.type = "button";
+        confirm.addEventListener("click", async () => {
+          confirm.disabled = true;
+          try {
+            if (await onConfirm(fields) !== false) closeModal();
+          } catch (error) {
+            // rpc() 已把原因 toast 出来了；这里再吞一层是为了不让 rejection 冒到 window 上变成
+            // unhandledrejection——宿主 webview 里那条既看不见也没法处理。弹窗保持打开才是用户想要的：
+            // 换个审批人再点一次就行，不用从头再走一遍。
+          } finally {
+            confirm.disabled = false;
+          }
+        });
+        actions.append(cancel, confirm);
+        $("overlay").classList.add("show");
+      }
+
+      function closeModal() { $("overlay").classList.remove("show"); }
+
+      function askDecision(record, decision) {
+        const action = decision === "approved" ? t("review.approve") : t("review.reject");
+        openModal(t("modal.decideTitle", { action, id: record.recordId }), (body) => {
+          // 弹窗里必须看得见**判定本身**。只给一段 SQL 和两个按钮，等于让人对着原文凭直觉
+          // 按下一个会永久留在链里的键——影响多少行、命中了哪些项才是「该不该批」的内容，
+          // 而它们此前只出现在弹窗外面的报告里。
+          const brief = el("div", "field");
+          brief.append(el("div", "hint", t("modal.decideBrief")));
+          const head = el("div", "actions");
+          head.style.marginTop = "0";
+          head.append(badge(`risk-${record.riskLevel}`, riskLabel(record.riskLevel)));
+          head.append(el("span", "hint",
+            `${t("review.estimatedRows")}: ${record.estimatedRows == null ? t("common.none") : record.estimatedRows}`));
+          brief.append(head);
+          const list = el("ul", "findings");
+          if (!record.findings.length) {
+            list.append(el("li", null, t("modal.noFindingsOnRecord")));
+          }
+          record.findings.forEach((finding) => {
+            const item = el("li");
+            item.append(badge(`risk-${finding.risk}`, riskLabel(finding.risk)));
+            const msg = el("div", "msg");
+            msg.append(el("div", null, finding.message));
+            msg.append(el("div", "code", [codeLabel(finding.code), finding.statement].filter(Boolean).join(" · ")));
+            item.append(msg);
+            list.append(item);
+          });
+          brief.append(list);
+          const approverField = el("div", "field");
+          approverField.append(el("label", null, t("modal.approver")));
+          const approver = document.createElement("input");
+          approver.type = "text";
+          const me = $("operator").value.trim();
+          // 双重控制开着时，把自己的名字预填进去等于把用户直接推进"不得自批"的报错里——
+          // 单人使用时两个按钮都点不动。这种情况留空，并在下面说清楚提交人是谁、去哪儿改。驳回不受这条约束（它不授予任何权限），照旧预填。
+          const distinct = !state.rules || state.rules.requireDistinctApprover !== false;
+          const selfApproval = decision === "approved" && distinct
+            && !!me && me.toLowerCase() === String(record.operator || "").trim().toLowerCase();
+          approver.value = selfApproval ? "" : me;
+          approverField.append(approver);
+          if (selfApproval) {
+            approverField.append(el("div", "hint", t("modal.selfApprovalHint", { operator: record.operator })));
+          }
+          const noteField = el("div", "field");
+          noteField.append(el("label", null, t("modal.note")));
+          const note = document.createElement("textarea");
+          note.rows = 3;
+          noteField.append(note, el("div", "hint", t("modal.noteHint")));
+          // 本次会话内刚提交的记录还能看到原文，再往前只有库里的脱敏文本；两种都必须标明
+          // 是哪一种，否则审查者会以为看到的 `?` 就是 SQL 本身。
+          const original = state.originals.get(record.recordId);
+          const sqlField = el("div", "field");
+          sqlField.append(el("div", "hint", original ? t("modal.sqlOriginal") : t("modal.sqlRedacted")));
+          sqlField.append(el("pre", null, original || record.sql));
+          body.append(brief, sqlField, approverField, noteField);
+          return { approver, note };
+        }, async ({ approver, note }) => {
+          const who = approver.value.trim();
+          if (!who) { toast(t("modal.needApprover"), true); return false; }
+          const result = await rpc("guard/decide", {
+            recordId: record.recordId,
+            decision,
+            approver: who,
+            note: note.value.trim() || undefined
+          });
+          if (state.record && state.record.recordId === record.recordId) {
+            state.record = result.record;
+            paintRecord(result.record);
+          }
+          if (state.selected && state.selected.recordId === record.recordId) {
+            state.selected = result.record;
+            paintDetail(result.record);
+          }
+          toast(t("modal.decided", { id: record.recordId, status: statusLabel(result.record.status) }));
+          await refreshAudit();
+        });
+      }
+
+      /* ---------- audit tab ---------- */
+
+      function readFilter() {
+        const limit = Number.parseInt($("fLimit").value, 10) || 50;
+        return {
+          riskLevel: $("fRisk").value || undefined,
+          status: $("fStatus").value || undefined,
+          database: $("fDatabase").value || undefined,
+          operator: $("fOperator").value || undefined,
+          keyword: $("fKeyword").value.trim() || undefined,
+          limit,
+          offset: state.offset
+        };
+      }
+
+      /// 用分面结果填两个下拉，选项文字带上计数（"prod (12)"），不点开也能看出哪个作用域
+      /// 记录最多。当前选中值即使不在分面里也要保留成选项：否则 select 静默跳回"全部"，
+      /// 而 state.filter 还留着旧值，界面显示的条数和实际筛选条件就不一致了。
+      function paintFacets(facets) {
+        const fill = (id, entries) => {
+          const select = $(id);
+          const keep = select.value;
+          select.replaceChildren();
+          const any = el("option", null, t("common.all"));
+          any.value = "";
+          select.append(any);
+          (entries || []).forEach((entry) => {
+            const option = el("option", null, `${entry.value} (${entry.count})`);
+            option.value = entry.value;
+            select.append(option);
+          });
+          if (keep && ![...select.options].some((option) => option.value === keep)) {
+            const missing = el("option", null, keep);
+            missing.value = keep;
+            select.append(missing);
+          }
+          select.value = keep || "";
+        };
+        fill("fDatabase", facets.databases);
+        fill("fOperator", facets.operators);
+      }
+
+      async function refreshAudit() {
+        state.filter = readFilter();
+        // 分面失败不该连带整张列表刷不出来：下拉空着只是少个筛选入口，所以单独 catch 成
+        // null，其余两个请求照常。
+        const [stats, listed, facets] = await Promise.all([
+          rpc("guard/stats"),
+          rpc("guard/records", { filter: state.filter }),
+          rpc("guard/facets").catch(() => null)
+        ]);
+        state.stats = stats;
+        state.total = listed.total;
+        state.items = listed.items;
+        if (state.offset >= listed.total && listed.total > 0) {
+          state.offset = Math.max(0, Math.floor((listed.total - 1) / state.filter.limit) * state.filter.limit);
+          const retry = await rpc("guard/records", { filter: Object.assign({}, state.filter, { offset: state.offset }) });
+          state.items = retry.items;
+        }
+        if (facets) paintFacets(facets);
+        paintStats(stats);
+        paintRows();
+      }
+
+      function paintStats(stats) {
+        const host = $("stats");
+        if (!host || !stats) return;
+        host.replaceChildren();
+        [["total", stats.total], ["pending", stats.pending], ["approved", stats.approved],
+         ["rejected", stats.rejected], ["highRisk", stats.highRisk]].forEach(([key, value]) => {
+          const chip = el("div", "chip");
+          chip.append(el("b", null, String(value ?? 0)), el("span", null, t(`stats.${key}`)));
+          host.append(chip);
+        });
+      }
+
+      function paintRows() {
+        const body = $("records");
+        if (!body) return;
+        body.replaceChildren();
+        $("recordsEmpty").hidden = state.items.length !== 0;
+        $("recordsEmpty").textContent = t("audit.empty");
+        state.items.forEach((record) => {
+          const row = el("tr", "clickable");
+          row.tabIndex = 0;
+          row.setAttribute("aria-selected", String(state.selected?.recordId === record.recordId));
+          row.append(el("td", "mono", formatTime(record.createdAtMs)));
+          row.append(el("td", "mono", record.recordId));
+          row.append(el("td", null, record.operator));
+          row.append(el("td", null, record.databaseName || t("common.none")));
+          const riskCell = el("td");
+          riskCell.append(badge(`risk-${record.riskLevel}`, riskLabel(record.riskLevel)));
+          row.append(riskCell);
+          const statusCell = el("td");
+          statusCell.append(badge(`st-${record.status}`, statusLabel(record.status)));
+          row.append(statusCell);
+          row.append(el("td", "sql", record.sql));
+          const open = () => { state.selected = record; paintDetail(record); paintRows(); };
+          row.addEventListener("click", open);
+          row.addEventListener("keydown", (event) => { if (event.key === "Enter") open(); });
+          body.append(row);
+        });
+        const limit = state.filter.limit || 50;
+        const from = state.total === 0 ? 0 : state.offset + 1;
+        const to = Math.min(state.total, state.offset + state.items.length);
+        $("pageInfo").textContent = t("audit.page", { from, to, total: state.total });
+        $("prev").disabled = state.offset <= 0;
+        $("next").disabled = to >= state.total;
+      }
+
+      function paintDetail(record) {
+        $("detailCard").hidden = false;
+        const kv = $("detailKv");
+        kv.replaceChildren();
+        const push = (name, value) => kv.append(el("dt", null, name), el("dd", null, value || t("common.none")));
+        push(t("audit.colRecord"), record.recordId);
+        const statusLine = el("dd");
+        statusLine.append(badge(`st-${record.status}`, statusLabel(record.status)),
+          document.createTextNode(" "), badge(`risk-${record.riskLevel}`, riskLabel(record.riskLevel)));
+        kv.append(el("dt", null, t("audit.colStatus")), statusLine);
+        push(t("audit.colOperator"), record.operator);
+        push(t("modal.approver"), record.approver);
+        push(t("modal.note"), record.note);
+        push(t("audit.colDatabase"), record.databaseName);
+        push(t("review.estimatedRows"), record.estimatedRows == null ? "" : String(record.estimatedRows));
+        push(t("audit.colTime"), formatTime(record.createdAtMs));
+        push("decidedAt", formatTime(record.decidedAtMs));
+        push(t("review.hash"), record.sqlHash);
+        push("digest", record.digest);
+        $("detailSql").textContent = record.sql;
+        const list = $("detailFindings");
+        list.replaceChildren();
+        record.findings.forEach((finding) => {
+          const item = el("li");
+          item.append(badge(`risk-${finding.risk}`, riskLabel(finding.risk)));
+          const body = el("div", "msg");
+          body.append(el("div", null, finding.message));
+          body.append(el("div", "code", [codeLabel(finding.code), finding.statement].filter(Boolean).join(" · ")));
+          item.append(body);
+          list.append(item);
+        });
+        const pending = record.status === "pending";
+        $("detailApprove").disabled = !pending;
+        $("detailReject").disabled = !pending;
+      }
+
+      async function doVerify() {
+        const report = await rpc("guard/verify", {}, 120000);
+        const host = $("verifyBanner");
+        host.replaceChildren();
+        const banner = el("div", `banner ${report.ok ? "ok" : "bad"}`);
+        banner.textContent = report.ok
+          ? t("audit.verifyOk", { n: report.checked })
+          : t("audit.verifyBad", { id: report.firstBrokenRecord || "?", n: (report.decisionMismatches || []).length });
+        host.append(banner);
+      }
+
+      async function doExport() {
+        // 不再传 limit/offset：导出的语义是"符合条件的全部记录"，分页由后端忽略。
+        const result = await rpc("guard/export", { filter: state.filter }, 120000);
+        const bytes = new TextEncoder().encode(result.csv);
+        const exported = result.exported ?? result.total;
+        // 导出条数和总条数不一致时必须说出来，否则用户会以为文件是全量的。
+        const summary = result.truncated
+          ? t("audit.exportTruncated", { n: exported, total: result.total })
+          : "";
+        const transfer = bridge.fileTransfer;
+        if (transfer && bridge.capabilities?.fileTransfer?.beginSave) {
+          const target = await transfer.beginSave({ name: result.filename, size: bytes.byteLength });
+          await transfer.write(target.handleId, 0, bytes);
+          await transfer.finish(target.handleId);
+          toast(t("audit.exportDone", { n: exported }) + summary, Boolean(summary));
+          return;
+        }
+        if (bridge.capabilities?.clipboardWrite && bridge.clipboard) {
+          await bridge.clipboard.writeText(result.csv);
+          toast(t("audit.exportCopied", { n: exported }) + summary, Boolean(summary));
+          return;
+        }
+        openModal(result.filename, (body) => {
+          const area = document.createElement("textarea");
+          area.rows = 14;
+          area.value = result.csv;
+          body.append(el("div", "hint", t("audit.exportInline") + summary), area);
+          return {};
+        }, () => true);
+      }
+
+      /* ---------- rules tab ---------- */
+
+      function paintRules() {
+        const rules = state.rules;
+        DETECTORS.forEach((key) => { const input = $(key); if (input) input.checked = rules[key] !== false; });
+        $("approvalFromLevel").value = rules.approvalFromLevel || "high";
+        $("largeScanRowThreshold").value = String(rules.largeScanRowThreshold ?? 100000);
+        $("autoAllowReadOnly").checked = rules.autoAllowReadOnly !== false;
+        // 默认就是开启，所以只有显式存过 false 才不勾。
+        $("requireDistinctApprover").checked = rules.requireDistinctApprover !== false;
+        $("sensitiveColumns").value = (rules.sensitiveColumns || []).join("\n");
+        $("whitelistDatabases").value = (rules.whitelistDatabases || []).join("\n");
+        $("whitelistKeywords").value = (rules.whitelistKeywords || []).join("\n");
+        $("approvers").value = (rules.approvers || []).join("\n");
+        $("scopeApprovers").value = Object.entries(rules.scopeApprovers || {})
+          .map(([scope, names]) => `${scope} = ${names.join(", ")}`)
+          .join("\n");
+      }
+
+      function lines(id) {
+        return $(id).value.split("\n").map((entry) => entry.trim()).filter(Boolean);
+      }
+
+      /// `prod = alice, bob` 一行一个库 → { prod: ["alice", "bob"] }。
+      /// 没有 `=` 的行整行忽略：猜不出用户是想配库还是配人，错解析会改到审批权限，静默丢掉
+      /// 更好。丢掉之后 saveRules 用 sidecar 回传的规则重新 paintRules()，那行会消失，
+      /// 用户能看出来它没被接受。
+      function scopeApproversFrom(id) {
+        const scopes = {};
+        lines(id).forEach((line) => {
+          const split = line.indexOf("=");
+          if (split < 0) return;
+          const scope = line.slice(0, split).trim();
+          if (!scope) return;
+          scopes[scope] = line.slice(split + 1).split(",").map((name) => name.trim()).filter(Boolean);
+        });
+        return scopes;
+      }
+
+      async function saveRules() {
+        const rules = Object.assign({}, state.rules);
+        DETECTORS.forEach((key) => { rules[key] = $(key).checked; });
+        rules.approvalFromLevel = $("approvalFromLevel").value;
+        rules.largeScanRowThreshold = Number.parseInt($("largeScanRowThreshold").value, 10);
+        rules.autoAllowReadOnly = $("autoAllowReadOnly").checked;
+        rules.requireDistinctApprover = $("requireDistinctApprover").checked;
+        rules.sensitiveColumns = lines("sensitiveColumns");
+        rules.whitelistDatabases = lines("whitelistDatabases");
+        rules.whitelistKeywords = lines("whitelistKeywords");
+        rules.approvers = lines("approvers");
+        rules.scopeApprovers = scopeApproversFrom("scopeApprovers");
+        state.rules = await rpc("guard/rules/save", { rules });
+        paintRules();
+        toast(t("rules.saved"));
+      }
+
+      async function loadRules() {
+        state.rules = await rpc("guard/rules/get");
+        paintDetectors();
+        paintRules();
+      }
+
+      /* ---------- tabs, theme, boot ---------- */
+
+      function selectTab(name) {
+        document.querySelectorAll("nav button[data-tab]").forEach((button) => {
+          button.setAttribute("aria-selected", String(button.dataset.tab === name));
+        });
+        ["review", "audit", "rules"].forEach((tab) => { $(`tab-${tab}`).hidden = tab !== name; });
+        if (name === "audit") refreshAudit().catch(() => {});
+      }
+
+      function applyEnv() {
+        const locale = (bridge.locale || "en").toLowerCase();
+        state.locale = bridge.locale || "en";
+        state.dict = locale.startsWith("zh") ? I18N.zh : I18N.en;
+        const appearance = bridge.theme?.appearance;
+        if (appearance) document.documentElement.dataset.dbxTheme = appearance;
+        paintStatic();
+      }
+
+      /* 操作人身份。真机探测已确认：宿主不提供任何身份字段（context 是 {}，bridge 的
+         39 个 key 里没有 user/account/session），所以 operator 只能是**自报**的——
+         哈希链能证明记录没被改过，证明不了是谁敲的，界面上不能把话说满。
+         名字存在宿主 storage（manifest 声明 host.storage）而不是 sidecar 的 meta 表：
+         它跟着这台机器上的 DBX 走，重装插件不丢，也不会混进审计数据。
+         拿不到 storage（旧宿主 / 权限被拒）时降级为只记在当前页面，并如实提示用户。 */
+      const OPERATOR_KEY = "sqlGuard.operator";
+
+      function hostStorage() {
+        const storage = bridge?.storage;
+        return storage && typeof storage.get === "function" && typeof storage.set === "function" ? storage : null;
+      }
+
+      function operatorStatus(key) {
+        const hint = $("operatorStatus");
+        if (hint) hint.textContent = key ? t(key) : "";
+      }
+
+      async function loadOperator() {
+        const storage = hostStorage();
+        if (!storage) { operatorStatus("review.operatorNoStore"); return; }
+        try {
+          const saved = await storage.get(OPERATOR_KEY);
+          if (typeof saved === "string" && saved.trim()) $("operator").value = saved.trim();
+        } catch (error) {
+          operatorStatus("review.operatorNoStore");
+        }
+      }
+
+      /// 提交和审批前都会调一次，避免刚改的名字因为没触发 change 而丢。
+      async function saveOperator() {
+        const storage = hostStorage();
+        if (!storage) return false;
+        const name = $("operator").value.trim();
+        try {
+          if (name) await storage.set(OPERATOR_KEY, name);
+          else if (typeof storage.delete === "function") await storage.delete(OPERATOR_KEY);
+          operatorStatus(name ? "review.operatorSaved" : "");
+          return true;
+        } catch (error) {
+          operatorStatus("review.operatorNoStore");
+          return false;
+        }
+      }
+
+      /* 常用库列表。宿主不会把用户配的连接交给插件（插件模型里连接是插件私有的，
+         没声明 connection-provider 就一个也看不见，context 也因此是 {}），所以这里
+         退而求其次：把用过的库名记在宿主 storage 里，做成可选可输的 datalist。
+         它只是个**标签补全**，不代表真的能连上那个库——审计记录里的 database
+         本来就是自报的作用域标签。 */
+      const DATABASES_KEY = "sqlGuard.databases";
+      const MAX_DATABASES = 20;
+
+      function paintDatalist() {
+        const list = $("dbOptions");
+        if (!list) return;
+        list.replaceChildren(...state.databases.map((name) => {
+          const option = document.createElement("option");
+          option.value = name;
+          return option;
+        }));
+      }
+
+      async function loadDatabases() {
+        const storage = hostStorage();
+        if (!storage) return;
+        try {
+          const saved = await storage.get(DATABASES_KEY);
+          if (Array.isArray(saved)) {
+            state.databases = saved.filter((name) => typeof name === "string" && name.trim()).slice(0, MAX_DATABASES);
+            paintDatalist();
+          }
+        } catch (error) {
+          // 读不出来就当没有历史，输入框照常可用，不值得打扰用户。
+        }
+      }
+
+      /// 记住一个库名：最近用的排最前，大小写不同算同一个（与审计分面的归并规则一致），
+      /// 超出上限就丢掉最久没用的。
+      async function rememberDatabase(name) {
+        const value = (name || "").trim();
+        if (!value) return;
+        const rest = state.databases.filter((entry) => entry.toLowerCase() !== value.toLowerCase());
+        state.databases = [value, ...rest].slice(0, MAX_DATABASES);
+        paintDatalist();
+        const storage = hostStorage();
+        if (!storage) return;
+        try {
+          await storage.set(DATABASES_KEY, state.databases);
+        } catch (error) {
+          // 存不进宿主也已经在内存里生效了，本次会话照常补全。
+        }
+      }
+
+      /// 宿主按连接只读接口的探测面板（诊断用，不是产品功能）。唯一目的：把
+      /// `getPlanCapabilities` / `getTableMetadata` 的**原始返回**摊出来，好判断"估算影响
+      /// 行数"和"真实列类型"这两条路在真机上能走多远。凭据一概不碰。
+      function bridgeMethod(name) {
+        const host = window.dbxPlugin || {};
+        return typeof host[name] === "function" ? host[name].bind(host) : null;
+      }
+
+      /// 三颗宿主诊断按钮（读 context / 计划能力 / 表结构）的总开关，默认关。
+      /// 它们回答「宿主此刻告诉我什么」，是开发期的问题：审批人点它不会多出任何结论，留在界面上反而像缺了一步。关掉后 handler、可用性判定和文案都在，改 true 整块回来。AI 卡片上那串方法名/能力清单走同一个开关（见 `paintAiStatus`）。
+      const SHOW_HOST_DIAGNOSTICS = false;
+      $("hostDiagnostics").hidden = !SHOW_HOST_DIAGNOSTICS;
+
+      function hostProbeTargets() {
+        const context = state.context || {};
+        return {
+          connectionId: $("hostConnection").value.trim() || context.connectionId || context.id || "",
+          table: $("hostTable").value.trim() || context.table || "",
+          database: context.database || context.databaseName || undefined,
+          schema: context.schema || undefined
+        };
+      }
+
+      async function probeHost(method, args) {
+        const call = bridgeMethod(method);
+        if (!call) {
+          const message = t("host.unavailable", { method });
+          $("hostBody").textContent = message;
+          $("hostStatus").textContent = message;
+          toast(message, true);
+          return;
+        }
+        $("hostStatus").textContent = `${method}…`;
+        try {
+          const value = await call(args);
+          $("hostBody").textContent = `${method}(${brief(args)}) ->\n${JSON.stringify(value, null, 2)}`;
+          $("hostStatus").textContent = t("host.done", { method });
+        } catch (error) {
+          // 宿主的报错原话要留在卡片里（理由同 AI 对话那条）：toast 会消失，而"连接没打开"
+          // 和"这个宿主没有这个接口"是两种完全不同的处置。
+          const message = error?.message || String(error);
+          $("hostBody").textContent = [
+            t("host.failed", { method, message }),
+            "",
+            `${method}(${brief(args)})`
+          ].join("\n");
+          $("hostStatus").textContent = t("host.failed", { method, message });
+          toast(t("host.failed", { method, message }), true);
+        }
+      }
+
+      /// 宿主把 TableContext 推进来时（右键进入、或用户换了表），把 connectionId 和表名填进
+      /// 探测面板。已手填过的值不覆盖——那是用户在看另一条连接的结果，被推送冲掉会让人
+      /// 分不清哪份返回属于哪条连接。
+      function syncHostInputs() {
+        const context = state.context || {};
+        if (!$("hostConnection").value) { $("hostConnection").value = context.connectionId || context.id || ""; }
+        if (!$("hostTable").value) { $("hostTable").value = context.table || ""; }
+        syncHostAvailability();
+      }
+
+      /// 没有 connectionId 时那几个按钮点下去只会换来红字报错——那不叫反馈，是让人以为自己
+      /// 把插件用坏了。所以直接关掉，并把"为什么关着、要怎样才能点亮"写在状态行里。
+      /// 宿主没给 context 是入口问题，不是故障。
+      function syncHostAvailability() {
+        const targets = hostProbeTargets();
+        const caps = (window.dbxPlugin || {}).capabilities || {};
+        $("hostPlanCaps").disabled = !targets.connectionId || caps.planApi === false;
+        // 读计划的按钮同样要 connectionId：explainPlan 只服务已打开的连接。但它不需要表名——
+        // 计划问的是「这条语句会扫多少行」，表名从语句里来。
+        $("hostPlan").disabled = !targets.connectionId || caps.planApi === false;
+        $("hostSchema").disabled = !targets.connectionId || !targets.table
+          || caps.schemaMetadataApi === false;
+        const hint = $("hostAvail");
+        // 可用性提示写在自己的行里，不和 #hostStatus 抢。抢的话只有两种结果：一句泛泛的
+        // 「还缺个表名」盖掉用户刚读到的拒绝原因，或者按钮灰了却没人说为什么——都让人以为插件坏了。
+        if (!targets.connectionId) {
+          hint.textContent = t("host.needsConnection");
+        } else if (caps.planApi === false) {
+          hint.textContent = t("host.planApiOff");
+        } else if (SHOW_HOST_DIAGNOSTICS && !targets.table) {
+          // 「还缺一个表名」只有那颗真需要表名的按钮在界面上时才是有效信息；诊断按钮收起后
+          // 还写着它，就是让一个人对着亮着的按钮读一句不相干的解释。
+          hint.textContent = t("host.needsTable");
+        } else {
+          hint.textContent = "";
+        }
+        // 换连接 = 缓存作废：上一条连接的方言和「支不支持估算计划」对这条不成立。
+        if (targets.connectionId !== state.planCapsKey) {
+          state.planCaps = null;
+          state.planCapsKey = null;
+          paintPlanSupport();
+        }
+      }
+
+      function doHostProbe() {
+        const host = window.dbxPlugin || {};
+        const context = state.context || {};
+        $("hostBody").textContent = [
+          `locale: ${host.locale}`,
+          `theme: ${host.theme && host.theme.appearance}`,
+          `contributionId: ${host.contributionId}`,
+          `context: ${JSON.stringify(context)}`,
+          `capabilities: ${JSON.stringify(host.capabilities || {})}`,
+          `bridge keys: ${Object.keys(host).sort().join(", ")}`,
+          // 上游只列了 bridge 的顶层 key；每个命名空间里有什么本地测不出来，而
+          // "宿主还能告诉我们什么"这个问题只能靠列出来回答。
+          `namespaces: ${Object.entries(host)
+            .filter(([, value]) => value && typeof value === "object")
+            .map(([name, value]) => `${name}[${Object.keys(value).sort().join(",")}]`)
+            .join(" ")}`
+        ].join("\n");
+        $("hostStatus").textContent = t("host.done", { method: "context" });
+        // 放在后面：这次调用本身成功了，但紧接着的可用性判断一旦发现没有 connectionId，
+        // 就要把"为什么那两个还是关着的"覆盖在成功提示上。
+        syncHostInputs();
+      }
+
+      function requireProbeConnection() {
+        const targets = hostProbeTargets();
+        if (!targets.connectionId) {
+          toast(t("host.noConnection"), true);
+          return null;
+        }
+        return targets;
+      }
+
+      async function doHostPlanCaps() {
+        const targets = requireProbeConnection();
+        if (!targets) return;
+        await probeHost("getPlanCapabilities", targets.connectionId);
+      }
+
+      async function doHostSchema() {
+        const targets = requireProbeConnection();
+        if (!targets) return;
+        if (!targets.table) { toast(t("host.noTable"), true); return; }
+        await probeHost("getTableMetadata", targets);
+      }
+
+      async function boot() {
+        if (!bridge) { $("boot").textContent = I18N.en["boot.noBridge"]; return; }
+        $("boot").textContent = "…";
+        try {
+          await bridge.ready;
+        } catch (error) {
+          $("boot").textContent = `${I18N.en["boot.failed"]} ${error?.message || error}`;
+          return;
+        }
+        applyEnv();
+        window.addEventListener("dbx-plugin-env", applyEnv);
+        if (typeof bridge.onContext === "function") {
+          bridge.onContext((next) => { state.context = next || {}; syncContextInputs(); syncHostInputs(); });
+        }
+        state.context = bridge.context || {};
+        syncContextInputs();
+
+        const info = await rpc("guard/ping").catch(() => null);
+        $("meta").textContent = info ? `${info.plugin} ${info.version} · ${info.store}` : "";
+        $("boot").hidden = true;
+        // 探测面板常驻：它报"这台宿主能告诉我们什么"，与有没有 SQL、有没有解析出模型无关，
+        // 藏在报告后面反而没人去点。
+        $("hostCard").hidden = false;
+        syncHostInputs();
+
+        // 先于 loadRules()：操作人名字来自宿主 storage，与 sidecar 是否存活无关，
+        // 不该因规则读取失败而跟着不加载。
+        await loadOperator();
+        await loadDatabases();
+        await loadRules();
+        paintStatic();
+        selectTab("review");
+      }
+
+      document.querySelectorAll("nav button[data-tab]").forEach((button) => {
+        button.addEventListener("click", () => selectTab(button.dataset.tab));
+      });
+      $("analyze").addEventListener("click", () => doAnalyze().catch(() => {}));
+      $("submit").addEventListener("click", () => doSubmit().catch(() => {}));
+      // change 而不是 input：每敲一个字符就写一次宿主 storage 没必要，失焦时存一次就够。
+      $("operator").addEventListener("change", () => { saveOperator(); });
+      $("clear").addEventListener("click", () => {
+        $("sql").value = "";
+        // 走 clearPlanRows 而不是直接清空输入框：行数和它对应的那段 SQL 是成对状态，
+        // 只清文本会留下一个「还挂在旧语句上」的数字。
+        clearPlanRows();
+        state.report = null; state.record = null; state.reportSql = null;
+        $("reportBody").replaceChildren(el("div", "empty", t("review.noReport")));
+        $("recordCard").hidden = true;
+        // 报告没了，围绕它的预审意见也就没有意义了，一并收掉。
+        $("aiCard").hidden = true;
+        $("aiBody").replaceChildren();
+      });
+      $("aiReview").addEventListener("click", () => doAiReview().catch(() => {}));
+      $("aiChat").addEventListener("click", () => doAiChat().catch(() => {}));
+      $("hostProbe").addEventListener("click", doHostProbe);
+      $("hostConnection").addEventListener("input", syncHostAvailability);
+      $("hostTable").addEventListener("input", syncHostAvailability);
+      $("hostPlanCaps").addEventListener("click", () => doHostPlanCaps().catch(() => {}));
+      $("hostPlan").addEventListener("click", () => doReadHostPlan().catch(() => {}));
+      // SQL 或连接一变，已有的计划读数就可能属于「另一条语句、另一条连接」：让它在下一次
+      // 分析前就地作废，而不是带着它跑出一份归因错误的报告。
+      $("sql").addEventListener("input", () => { retirePlanRows(); });
+      $("hostConnection").addEventListener("input", () => { retirePlanRows(); });
+      $("hostSchema").addEventListener("click", () => doHostSchema().catch(() => {}));
+      $("approve").addEventListener("click", () => { if (state.record) askDecision(state.record, "approved"); });
+      $("reject").addEventListener("click", () => { if (state.record) askDecision(state.record, "rejected"); });
+      $("detailApprove").addEventListener("click", () => { if (state.selected) askDecision(state.selected, "approved"); });
+      $("detailReject").addEventListener("click", () => { if (state.selected) askDecision(state.selected, "rejected"); });
+      $("refresh").addEventListener("click", () => { state.offset = 0; refreshAudit().catch(() => {}); });
+      $("verify").addEventListener("click", () => doVerify().catch(() => {}));
+      $("export").addEventListener("click", () => doExport().catch(() => {}));
+      $("prev").addEventListener("click", () => {
+        state.offset = Math.max(0, state.offset - (state.filter.limit || 50));
+        refreshAudit().catch(() => {});
+      });
+      $("next").addEventListener("click", () => {
+        state.offset += state.filter.limit || 50;
+        refreshAudit().catch(() => {});
+      });
+      ["fRisk", "fStatus", "fDatabase", "fOperator", "fLimit"].forEach((id) => {
+        $(id).addEventListener("change", () => { state.offset = 0; refreshAudit().catch(() => {}); });
+      });
+      $("fKeyword").addEventListener("keydown", (event) => {
+        if (event.key === "Enter") { state.offset = 0; refreshAudit().catch(() => {}); }
+      });
+      $("saveRules").addEventListener("click", () => saveRules().catch(() => {}));
+      $("reloadRules").addEventListener("click", () => loadRules().catch(() => {}));
+      $("overlay").addEventListener("click", (event) => { if (event.target === $("overlay")) closeModal(); });
+      document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeModal(); });
+
+      boot().catch((error) => {
+        $("boot").hidden = false;
+        $("boot").textContent = `${I18N.en["boot.failed"]} ${error?.message || error}`;
+      });
+    </script>
+  </body>
+</html>

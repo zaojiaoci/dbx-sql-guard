@@ -1,0 +1,85 @@
+{
+  "$schema": "https://raw.githubusercontent.com/t8y2/dbx/main/plugins/manifest.schema.json",
+  "manifest_version": 1,
+  "id": "io.github.zaojiaoci.sql-guard",
+  "name": "DBX SQL Guard",
+  "version": "0.4.0",
+  "publisher": "zaojiaoci",
+  "description": "SQL risk review and approval trail for DBX.",
+  "icon": "assets/plugin.svg",
+  "engines": {
+    "dbx": ">=0.6.38",
+    "host_api": "1"
+  },
+  "permissions": [
+    "host.storage",
+    "host.ai",
+    "host.schema:read",
+    "host.plans:read"
+  ],
+  "entrypoints": {
+    "backend": {
+      "executable": "bin/dbx-plugin-sql-guard"
+    },
+    "ui": {
+      "root": "ui",
+      "entry": "ui/index.html"
+    }
+  },
+  "contributions": [
+    {
+      "type": "workbench",
+      "id": "io.github.zaojiaoci.sql-guard.workbench",
+      "label": "DBX SQL Guard",
+      "description": "Analyze SQL risk, approve or reject it, and browse the tamper-evident audit trail.",
+      "icon": "assets/plugin.svg"
+    },
+    {
+      "type": "context-menu",
+      "id": "io.github.zaojiaoci.sql-guard.table-menu",
+      "label": "SQL Guard: review risk for this table",
+      "menu": "table",
+      "action": {
+        "type": "open-workbench",
+        "workbench": "io.github.zaojiaoci.sql-guard.workbench"
+      }
+    },
+    {
+      "type": "command",
+      "id": "io.github.zaojiaoci.sql-guard.open-dock",
+      "label": "SQL Guard: open in bottom panel",
+      "action": {
+        "type": "open-workbench",
+        "workbench": "io.github.zaojiaoci.sql-guard.workbench",
+        "presentation": "panel"
+      }
+    },
+    {
+      "type": "mcp",
+      "id": "io.github.zaojiaoci.sql-guard.ai",
+      "description": "Lets the built-in DBX AI assistant check SQL risk and read the approval trail before proposing destructive statements.",
+      "ai_tools": true
+    }
+  ],
+  "localizations": {
+    "zh-CN": {
+      "name": "DBX SQL Guard",
+      "description": "为 DBX 提供 SQL 风险评审与审批留痕。",
+      "contributions": {
+        "io.github.zaojiaoci.sql-guard.workbench": {
+          "label": "DBX SQL Guard",
+          "description": "分析 SQL 风险、执行审批或驳回，并浏览防篡改的审计留痕。"
+        },
+        "io.github.zaojiaoci.sql-guard.table-menu": {
+          "label": "SQL Guard：评审这张表的 SQL 风险"
+        },
+        "io.github.zaojiaoci.sql-guard.open-dock": {
+          "label": "SQL Guard：在底部面板打开"
+        },
+        "io.github.zaojiaoci.sql-guard.ai": {
+          "description": "让 DBX 内置 AI 助手在给出破坏性语句前，先检查 SQL 风险并读取审批留痕。"
+        }
+      }
+    }
+  }
+}
