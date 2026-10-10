@@ -9,7 +9,11 @@ permissions:
 
 jobs:
   release:
-    uses: t8y2/dbx/.github/workflows/plugin-release-reusable.yml@plugin-sdk-v1
+    # The scaffold wrote @plugin-sdk-v1, which does not exist as a branch or tag
+    # in t8y2/dbx, so the reusable workflow could not be loaded and the run failed
+    # with zero jobs. Pinned to a ref that does exist: the DBX release this plugin
+    # is validated against.
+    uses: t8y2/dbx/.github/workflows/plugin-release-reusable.yml@v0.6.38
     with:
       release-tag: ${{ github.event.release.tag_name }}
       package-command: dbx-plugin package .
