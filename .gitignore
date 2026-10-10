@@ -2,5 +2,6 @@
 /.dbx-dev/
 /backend/target/
 .dbx-repository-signing-key.env
+.idea/
 .DS_Store
 *.log
